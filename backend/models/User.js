@@ -35,6 +35,11 @@ export default (sequelize) => {
     lastLogin: {
       type: DataTypes.DATE,
       allowNull: true
+    },
+    refreshToken: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      comment: 'Hashed refresh token for JWT authentication'
     }
   }, {
     tableName: 'users',
