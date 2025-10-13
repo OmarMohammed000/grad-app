@@ -93,33 +93,10 @@ export default {
         allowNull: true,
         comment: 'When completion was verified'
       },
-      notes: {
-        type: Sequelize.TEXT,
-        allowNull: true,
-        comment: 'User notes about completion'
-      },
       verificationNotes: {
         type: Sequelize.TEXT,
         allowNull: true,
         comment: 'Verifier notes'
-      },
-      difficultyRating: {
-        type: Sequelize.INTEGER,
-        allowNull: true,
-        validate: {
-          min: 1,
-          max: 5
-        },
-        comment: 'User difficulty rating (1-5)'
-      },
-      satisfactionRating: {
-        type: Sequelize.INTEGER,
-        allowNull: true,
-        validate: {
-          min: 1,
-          max: 5
-        },
-        comment: 'User satisfaction rating (1-5)'
       },
       durationMinutes: {
         type: Sequelize.INTEGER,

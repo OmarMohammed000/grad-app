@@ -48,34 +48,6 @@ export default {
         allowNull: true,
         comment: 'Time of day habit was completed'
       },
-      notes: {
-        type: Sequelize.TEXT,
-        allowNull: true,
-        comment: 'User notes about completion'
-      },
-      mood: {
-        type: Sequelize.ENUM('very_bad', 'bad', 'neutral', 'good', 'excellent'),
-        allowNull: true,
-        comment: 'User mood when completing habit'
-      },
-      difficultyRating: {
-        type: Sequelize.INTEGER,
-        allowNull: true,
-        validate: {
-          min: 1,
-          max: 5
-        },
-        comment: 'User rating of difficulty (1-5)'
-      },
-      energyLevel: {
-        type: Sequelize.INTEGER,
-        allowNull: true,
-        validate: {
-          min: 1,
-          max: 5
-        },
-        comment: 'User energy level (1-5)'
-      },
       streakCount: {
         type: Sequelize.INTEGER,
         allowNull: false,

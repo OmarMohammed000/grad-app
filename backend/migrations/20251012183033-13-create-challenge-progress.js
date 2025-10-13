@@ -104,34 +104,7 @@ export default {
         },
         comment: 'Activity streak count on this date'
       },
-      notes: {
-        type: Sequelize.TEXT,
-        allowNull: true,
-        comment: 'Daily progress notes'
-      },
-      mood: {
-        type: Sequelize.ENUM('very_bad', 'bad', 'neutral', 'good', 'excellent'),
-        allowNull: true,
-        comment: 'User mood on this date'
-      },
-      energyLevel: {
-        type: Sequelize.INTEGER,
-        allowNull: true,
-        validate: {
-          min: 1,
-          max: 5
-        },
-        comment: 'User energy level (1-5)'
-      },
-      motivationLevel: {
-        type: Sequelize.INTEGER,
-        allowNull: true,
-        validate: {
-          min: 1,
-          max: 5
-        },
-        comment: 'User motivation level (1-5)'
-      },
+      
       createdAt: {
         type: Sequelize.DATE,
         allowNull: false,

@@ -44,33 +44,10 @@ export default {
         defaultValue: Sequelize.NOW,
         comment: 'When task was completed'
       },
-      notes: {
-        type: Sequelize.TEXT,
-        allowNull: true,
-        comment: 'User notes about completion'
-      },
       durationMinutes: {
         type: Sequelize.INTEGER,
         allowNull: true,
         comment: 'Actual time spent on task'
-      },
-      difficultyRating: {
-        type: Sequelize.INTEGER,
-        allowNull: true,
-        validate: {
-          min: 1,
-          max: 5
-        },
-        comment: 'User rating of actual difficulty (1-5)'
-      },
-      satisfactionRating: {
-        type: Sequelize.INTEGER,
-        allowNull: true,
-        validate: {
-          min: 1,
-          max: 5
-        },
-        comment: 'User satisfaction with completion (1-5)'
       },
       taskSnapshot: {
         type: Sequelize.JSONB,
