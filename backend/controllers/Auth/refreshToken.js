@@ -1,4 +1,3 @@
-import { QueryTypes } from "sequelize";
 import jwt from "jsonwebtoken";
 import db from "../../models/index.js";
 import crypto from "crypto";
@@ -19,28 +18,33 @@ export default async function refreshToken(req, res) {
 
     const hashedToken = crypto.createHash("sha256").update(refreshToken).digest("hex");
 
-    // Verify refresh token exists in database
-    const [user] = await db.sequelize.query(
-      `SELECT 
-        u.id, 
-        u.email, 
-        u."isActive",
-        up."displayName",
-        c.level,
-        c."currentXp",
-        c."totalXp",
-        r.name as "rankName",
-        r.color as "rankColor"
-       FROM users u
-       LEFT JOIN user_profiles up ON u.id = up."userId"
-       LEFT JOIN characters c ON u.id = c."userId"
-       LEFT JOIN ranks r ON c."rankId" = r.id
-       WHERE u.id = $1 AND u."refreshToken" = $2`,
-      {
-        bind: [decoded.userId, hashedToken],
-        type: QueryTypes.SELECT
-      }
-    );
+    // Verify refresh token exists in database using Sequelize ORM
+    const user = await db.User.findOne({
+      where: { 
+        id: decoded.userId,
+        refreshToken: hashedToken
+      },
+      include: [
+        {
+          model: db.UserProfile,
+          as: 'profile',
+          attributes: ['displayName']
+        },
+        {
+          model: db.Character,
+          as: 'character',
+          attributes: ['level', 'currentXp', 'totalXp'],
+          include: [
+            {
+              model: db.Rank,
+              as: 'rank',
+              attributes: ['name', 'color']
+            }
+          ]
+        }
+      ],
+      attributes: ['id', 'email', 'isActive']
+    });
 
     if (!user) {
       res.clearCookie('refreshToken', {
@@ -72,14 +76,10 @@ export default async function refreshToken(req, res) {
 
     const newRefreshHash = crypto.createHash("sha256").update(newRefreshToken).digest("hex");
 
-    // Update refresh token in database
-    await db.sequelize.query(
-      `UPDATE users SET "refreshToken" = $1, "updatedAt" = NOW() WHERE id = $2`,
-      {
-        bind: [newRefreshHash, user.id],
-        type: QueryTypes.UPDATE
-      }
-    );
+    // Update refresh token in database using Sequelize ORM
+    await user.update({
+      refreshToken: newRefreshHash
+    });
 
     // Set new refresh token cookie
     res.cookie('refreshToken', newRefreshToken, {
@@ -96,13 +96,13 @@ export default async function refreshToken(req, res) {
       user: {
         id: user.id,
         email: user.email,
-        displayName: user.displayName || 'Hunter',
-        level: user.level || 1,
-        currentXp: user.currentXp || 0,
-        totalXp: user.totalXp || 0,
+        displayName: user.profile?.displayName || 'Hunter',
+        level: user.character?.level || 1,
+        currentXp: user.character?.currentXp || 0,
+        totalXp: user.character?.totalXp || 0,
         rank: {
-          name: user.rankName || 'E-Rank',
-          color: user.rankColor || '#808080'
+          name: user.character?.rank?.name || 'E-Rank',
+          color: user.character?.rank?.color || '#808080'
         }
       }
     });

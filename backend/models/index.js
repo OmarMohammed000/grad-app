@@ -36,7 +36,9 @@ const modelFiles = fs
 
 for (const file of modelFiles) {
   const modelPath = path.join(__dirname, file);
-  const { default: modelDefiner } = await import(modelPath);
+  // Convert Windows path to file:// URL for ES modules
+  const modelUrl = new URL(`file:///${modelPath.replace(/\\/g, '/')}`);
+  const { default: modelDefiner } = await import(modelUrl);
   const model = modelDefiner(sequelize, Sequelize.DataTypes);
   db[model.name] = model;
 }

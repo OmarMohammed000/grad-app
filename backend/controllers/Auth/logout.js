@@ -1,6 +1,5 @@
 import db from "../../models/index.js";
 import crypto from "crypto";
-import { QueryTypes } from 'sequelize';
 
 /**
  * Logout user by clearing refresh token
@@ -12,12 +11,10 @@ export default async function logout(req, res) {
     if (refreshToken) {
       const hashedToken = crypto.createHash("sha256").update(refreshToken).digest("hex");
       
-      await db.sequelize.query(
-        `UPDATE users SET "refreshToken" = NULL, "updatedAt" = NOW() WHERE "refreshToken" = $1`,
-        {
-          bind: [hashedToken],
-          type: QueryTypes.UPDATE
-        }
+      // Clear refresh token using Sequelize ORM
+      await db.User.update(
+        { refreshToken: null },
+        { where: { refreshToken: hashedToken } }
       );
     }
 

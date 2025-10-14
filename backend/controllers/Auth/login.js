@@ -1,6 +1,5 @@
 import db from "../../models/index.js";
 import bcrypt from "bcryptjs";
-import { QueryTypes } from 'sequelize';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
@@ -20,29 +19,30 @@ export default async function login(req, res) {
   }
 
   try {
-    // Get user with related data
-    const [user] = await db.sequelize.query(
-      `SELECT 
-        u.id, 
-        u.email, 
-        u.password, 
-        u."isActive",
-        up."displayName",
-        c.level,
-        c."currentXp",
-        c."totalXp",
-        r.name as "rankName",
-        r.color as "rankColor"
-       FROM users u
-       LEFT JOIN user_profiles up ON u.id = up."userId"
-       LEFT JOIN characters c ON u.id = c."userId"
-       LEFT JOIN ranks r ON c."rankId" = r.id
-       WHERE u.email = $1`,
-      {
-        bind: [email],
-        type: QueryTypes.SELECT
-      }
-    );
+    // Get user with related data using Sequelize ORM
+    const user = await db.User.findOne({
+      where: { email },
+      include: [
+        {
+          model: db.UserProfile,
+          as: 'profile',
+          attributes: ['displayName']
+        },
+        {
+          model: db.Character,
+          as: 'character',
+          attributes: ['level', 'currentXp', 'totalXp'],
+          include: [
+            {
+              model: db.Rank,
+              as: 'rank',
+              attributes: ['name', 'color']
+            }
+          ]
+        }
+      ],
+      attributes: ['id', 'email', 'password', 'isActive']
+    });
 
     if (!user) {
       return res.status(401).json({ message: "Invalid email or password" });
@@ -75,16 +75,11 @@ export default async function login(req, res) {
     // Hash refresh token before storing
     const refreshHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
 
-    // Update refresh token and last login
-    await db.sequelize.query(
-      `UPDATE users 
-       SET "refreshToken" = $1, "lastLogin" = NOW(), "updatedAt" = NOW() 
-       WHERE id = $2`,
-      {
-        bind: [refreshHash, user.id],
-        type: QueryTypes.UPDATE
-      }
-    );
+    // Update refresh token and last login using Sequelize ORM
+    await user.update({
+      refreshToken: refreshHash,
+      lastLogin: new Date()
+    });
 
     // Set refresh token cookie
     const cookieOptions = {
@@ -92,7 +87,7 @@ export default async function login(req, res) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/api/auth/refresh'
+      path: 'auth/refresh'
     };
 
     res.cookie('refreshToken', refreshToken, cookieOptions);
@@ -103,13 +98,13 @@ export default async function login(req, res) {
       user: {
         id: user.id,
         email: user.email,
-        displayName: user.displayName || 'Hunter',
-        level: user.level || 1,
-        currentXp: user.currentXp || 0,
-        totalXp: user.totalXp || 0,
+        displayName: user.profile?.displayName || 'Hunter',
+        level: user.character?.level || 1,
+        currentXp: user.character?.currentXp || 0,
+        totalXp: user.character?.totalXp || 0,
         rank: {
-          name: user.rankName || 'E-Rank',
-          color: user.rankColor || '#808080'
+          name: user.character?.rank?.name || 'E-Rank',
+          color: user.character?.rank?.color || '#808080'
         }
       }
     });
