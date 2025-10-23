@@ -43,7 +43,7 @@ export default async function refreshToken(req, res) {
           ]
         }
       ],
-      attributes: ['id', 'email', 'isActive']
+      attributes: ['id', 'email', 'isActive', 'role']
     });
 
     if (!user) {
@@ -63,13 +63,13 @@ export default async function refreshToken(req, res) {
 
     // Generate new tokens (token rotation)
     const newAccessToken = jwt.sign(
-      { userId: user.id },
+      { userId: user.id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '15m' }
     );
 
     const newRefreshToken = jwt.sign(
-      { userId: user.id },
+      { userId: user.id, role: user.role },
       process.env.JWT_REFRESH_SECRET,
       { expiresIn: '7d' }
     );
@@ -97,6 +97,7 @@ export default async function refreshToken(req, res) {
         id: user.id,
         email: user.email,
         displayName: user.profile?.displayName || 'Hunter',
+        role: user.role,
         level: user.character?.level || 1,
         currentXp: user.character?.currentXp || 0,
         totalXp: user.character?.totalXp || 0,

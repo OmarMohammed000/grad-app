@@ -2,70 +2,191 @@ import axios, { AxiosInstance } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000';
+const API_TIMEOUT = parseInt(process.env.EXPO_PUBLIC_API_TIMEOUT || '15000');
+
+console.log('🔧 API Configuration:');
+console.log('  - Base URL:', API_URL);
+console.log('  - Timeout:', API_TIMEOUT, 'ms');
+console.log('  - Important: Use your computer\'s IP address (not localhost) when testing on mobile!');
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
   baseURL: API_URL,
-  timeout: parseInt(process.env.EXPO_PUBLIC_API_TIMEOUT || '10000'),
+  timeout: API_TIMEOUT,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Token management
+// Token management with web fallback
 export const TokenManager = {
   async getAccessToken(): Promise<string | null> {
-    return await SecureStore.getItemAsync('accessToken');
+    try {
+      // SecureStore is not available on web, use AsyncStorage instead
+      if (SecureStore.isAvailableAsync) {
+        const available = await SecureStore.isAvailableAsync();
+        if (available) {
+          return await SecureStore.getItemAsync('accessToken');
+        }
+      }
+      // Fallback to AsyncStorage for web
+      return await AsyncStorage.getItem('accessToken');
+    } catch (error) {
+      console.warn('Error getting access token:', error);
+      return null;
+    }
   },
 
   async setAccessToken(token: string): Promise<void> {
-    await SecureStore.setItemAsync('accessToken', token);
+    try {
+      if (SecureStore.isAvailableAsync) {
+        const available = await SecureStore.isAvailableAsync();
+        if (available) {
+          await SecureStore.setItemAsync('accessToken', token);
+          return;
+        }
+      }
+      await AsyncStorage.setItem('accessToken', token);
+    } catch (error) {
+      console.error('Error setting access token:', error);
+    }
   },
 
   async removeAccessToken(): Promise<void> {
-    await SecureStore.deleteItemAsync('accessToken');
+    try {
+      if (SecureStore.isAvailableAsync) {
+        const available = await SecureStore.isAvailableAsync();
+        if (available) {
+          await SecureStore.deleteItemAsync('accessToken');
+          return;
+        }
+      }
+      await AsyncStorage.removeItem('accessToken');
+    } catch (error) {
+      console.error('Error removing access token:', error);
+    }
   },
 
   async getRefreshToken(): Promise<string | null> {
-    return await SecureStore.getItemAsync('refreshToken');
+    try {
+      if (SecureStore.isAvailableAsync) {
+        const available = await SecureStore.isAvailableAsync();
+        if (available) {
+          return await SecureStore.getItemAsync('refreshToken');
+        }
+      }
+      return await AsyncStorage.getItem('refreshToken');
+    } catch (error) {
+      console.warn('Error getting refresh token:', error);
+      return null;
+    }
   },
 
   async setRefreshToken(token: string): Promise<void> {
-    await SecureStore.setItemAsync('refreshToken', token);
+    try {
+      if (SecureStore.isAvailableAsync) {
+        const available = await SecureStore.isAvailableAsync();
+        if (available) {
+          await SecureStore.setItemAsync('refreshToken', token);
+          return;
+        }
+      }
+      await AsyncStorage.setItem('refreshToken', token);
+    } catch (error) {
+      console.error('Error setting refresh token:', error);
+    }
   },
 
   async removeRefreshToken(): Promise<void> {
-    await SecureStore.deleteItemAsync('refreshToken');
+    try {
+      if (SecureStore.isAvailableAsync) {
+        const available = await SecureStore.isAvailableAsync();
+        if (available) {
+          await SecureStore.deleteItemAsync('refreshToken');
+          return;
+        }
+      }
+      await AsyncStorage.removeItem('refreshToken');
+    } catch (error) {
+      console.error('Error removing refresh token:', error);
+    }
   },
 
   async clearAll(): Promise<void> {
-    await Promise.all([
-      SecureStore.deleteItemAsync('accessToken'),
-      SecureStore.deleteItemAsync('refreshToken'),
-      AsyncStorage.removeItem('user'),
-    ]);
+    try {
+      await Promise.all([
+        this.removeAccessToken(),
+        this.removeRefreshToken(),
+        AsyncStorage.removeItem('user'),
+      ]);
+    } catch (error) {
+      console.error('Error clearing tokens:', error);
+    }
   }
 };
 
-// Request interceptor to add auth token
+// Request interceptor to add auth token and log requests
 api.interceptors.request.use(
   async (config) => {
-    const token = await TokenManager.getAccessToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    try {
+      console.log('🔑 Getting access token...');
+      const token = await TokenManager.getAccessToken();
+      console.log('🔑 Token retrieved:', token ? 'exists' : 'none');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.warn('⚠️  Failed to get access token:', error);
+      // Continue without token
     }
+    
+    // Log request details
+    console.log('🚀 API Request:', {
+      method: config.method?.toUpperCase(),
+      url: `${config.baseURL}${config.url}`,
+      data: config.data,
+      headers: config.headers,
+    });
+    
     return config;
   },
   (error) => {
+    console.error('❌ Request Error:', error);
     return Promise.reject(error);
   }
 );
 
-// Response interceptor to handle token refresh
+// Response interceptor to handle token refresh and log responses
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Log successful response
+    console.log('✅ API Response:', {
+      status: response.status,
+      url: response.config.url,
+      data: response.data,
+    });
+    return response;
+  },
   async (error) => {
+    // Log error response
+    console.error('❌ API Error Response:', {
+      status: error.response?.status,
+      url: error.config?.url,
+      data: error.response?.data,
+      message: error.message,
+      code: error.code,
+    });
+    
+    // Handle specific error types
+    if (error.code === 'ECONNABORTED') {
+      console.error('⏱️  Request timeout - Server not reachable');
+    } else if (error.code === 'ERR_NETWORK' || !error.response) {
+      console.error('🌐 Network error - Check if backend is running and accessible');
+      console.error('   Current API URL:', API_URL);
+      console.error('   Are you using the correct IP address for mobile testing?');
+    }
+    
     const originalRequest = error.config;
     
     if (error.response?.status === 401 && !originalRequest._retry) {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AuthService from '../services/auth';
 import { router } from 'expo-router';
+import { useGoogleAuth } from '../hooks/useGoogleAuth';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -22,6 +23,40 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Google Auth Hook
+  const { request, response, promptAsync } = useGoogleAuth();
+
+  // Handle Google OAuth response
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { authentication } = response;
+      handleGoogleAuthSuccess(authentication?.accessToken, authentication?.idToken);
+    } else if (response?.type === 'error') {
+      Alert.alert('Google Sign-In Error', response.error?.message || 'Failed to sign in');
+      setGoogleLoading(false);
+    } else if (response?.type === 'dismiss' || response?.type === 'cancel') {
+      setGoogleLoading(false);
+    }
+  }, [response]);
+
+  const handleGoogleAuthSuccess = async (accessToken: string | undefined, idToken: string | undefined) => {
+    if (!idToken) {
+      Alert.alert('Error', 'No ID token received from Google');
+      setGoogleLoading(false);
+      return;
+    }
+
+    try {
+      // Send ID token to backend for verification
+      await AuthService.googleSignIn(idToken);
+      router.replace('/(tabs)'); // Navigate to main app
+    } catch (error: any) {
+      Alert.alert('Sign-In Error', error.message || 'Failed to complete Google sign-in');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -43,11 +78,10 @@ export default function LoginScreen() {
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     try {
-      await AuthService.googleSignIn();
-      router.replace('/(tabs)'); // Navigate to main app
+      // Trigger Google Sign-In prompt
+      await promptAsync();
     } catch (error) {
-      // Error handled by AuthService with toast
-    } finally {
+      Alert.alert('Error', 'Failed to start Google sign-in');
       setGoogleLoading(false);
     }
   };
@@ -133,9 +167,9 @@ export default function LoginScreen() {
 
             {/* Google Sign-In Button */}
             <TouchableOpacity
-              style={[styles.googleButton, googleLoading && styles.buttonDisabled]}
+              style={[styles.googleButton, (googleLoading || !request) && styles.buttonDisabled]}
               onPress={handleGoogleSignIn}
-              disabled={loading || googleLoading}
+              disabled={loading || googleLoading || !request}
             >
               {googleLoading ? (
                 <ActivityIndicator color="#4285f4" />

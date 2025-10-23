@@ -41,7 +41,7 @@ export default async function login(req, res) {
           ]
         }
       ],
-      attributes: ['id', 'email', 'password', 'isActive']
+      attributes: ['id', 'email', 'password', 'isActive', 'role']
     });
 
     if (!user) {
@@ -61,13 +61,13 @@ export default async function login(req, res) {
 
     // Generate tokens
     const accessToken = jwt.sign(
-      { userId: user.id },
+      { userId: user.id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '15m' }
     );
 
     const refreshToken = jwt.sign(
-      { userId: user.id },
+      { userId: user.id, role: user.role },
       process.env.JWT_REFRESH_SECRET,
       { expiresIn: '7d' }
     );
@@ -99,6 +99,7 @@ export default async function login(req, res) {
         id: user.id,
         email: user.email,
         displayName: user.profile?.displayName || 'Hunter',
+        role: user.role,
         level: user.character?.level || 1,
         currentXp: user.character?.currentXp || 0,
         totalXp: user.character?.totalXp || 0,

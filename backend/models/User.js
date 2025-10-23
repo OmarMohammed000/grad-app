@@ -40,6 +40,15 @@ export default (sequelize) => {
       type: DataTypes.STRING(255),
       allowNull: true,
       comment: 'Hashed refresh token for JWT authentication'
+    },
+    role: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+      defaultValue: 'user',
+      validate: {
+        isIn: [['user', 'admin']]
+      },
+      comment: 'User role: user or admin'
     }
   }, {
     tableName: 'users',

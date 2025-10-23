@@ -1,17 +1,42 @@
 import api, { TokenManager } from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import GoogleSignin from '../config/google';
 import Toast from 'react-native-toast-message';
+
+interface User {
+  id: string;
+  email: string;
+  displayName: string;
+  level: number;
+  currentXp: number;
+  totalXp: number;
+  rank: {
+    name: string;
+    color: string;
+  };
+}
+
+interface AuthResponse {
+  accessToken: string;
+  user: User;
+}
 
 export class AuthService {
   // Email/Password Registration
-  static async register(email, password, displayName) {
+  static async register(email: string, password: string, displayName?: string): Promise<{ message: string; userId: string }> {
     try {
-      const response = await api.post('/auth/register', {
+      console.log('📝 AuthService.register called with:', { email, displayName });
+      console.log('📝 About to make API call to:', process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000');
+      
+      const requestData = {
         email,
         password,
         displayName,
-      });
+      };
+      console.log('📝 Request data:', requestData);
+      
+      console.log('📝 Calling api.post...');
+      const response = await api.post('/auth/register', requestData);
+      console.log('📝 API call completed successfully');
 
       Toast.show({
         type: 'success',
@@ -20,8 +45,24 @@ export class AuthService {
       });
 
       return response.data;
-    } catch (error) {
-      const message = error.response?.data?.message || 'Registration failed';
+    } catch (error: any) {
+      console.error('📝 AuthService.register error:', {
+        message: error.message,
+        code: error.code,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+      
+      let message = 'Registration failed';
+      
+      if (error.code === 'ECONNABORTED') {
+        message = 'Request timeout - Cannot reach server';
+      } else if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
+        message = 'Network error - Check if backend is running and accessible';
+      } else if (error.response?.data?.message) {
+        message = error.response.data.message;
+      }
+      
       Toast.show({
         type: 'error',
         text1: 'Registration Failed',
@@ -32,7 +73,7 @@ export class AuthService {
   }
 
   // Email/Password Login
-  static async login(email, password) {
+  static async login(email: string, password: string): Promise<AuthResponse> {
     try {
       const response = await api.post('/auth/login', {
         email,
@@ -52,7 +93,7 @@ export class AuthService {
       });
 
       return { accessToken, user };
-    } catch (error) {
+    } catch (error: any) {
       const message = error.response?.data?.message || 'Login failed';
       Toast.show({
         type: 'error',
@@ -63,18 +104,12 @@ export class AuthService {
     }
   }
 
-  // Google Sign-In
-  static async googleSignIn() {
+  // Google Sign-In using Expo Auth Session
+  // Exchanges Google ID token with backend for app tokens
+  static async googleSignIn(idToken: string): Promise<AuthResponse> {
     try {
-      // Check if device supports Google Play services
-      await GoogleSignin.hasPlayServices();
-
-      // Get user info from Google
-      const userInfo = await GoogleSignin.signIn();
-
-      // Send idToken to backend
       const response = await api.post('/auth/google', {
-        idToken: userInfo.data.idToken,
+        idToken,
       });
 
       const { accessToken, user } = response.data;
@@ -86,42 +121,39 @@ export class AuthService {
       Toast.show({
         type: 'success',
         text1: 'Welcome!',
-        text2: `Level ${user.level} ${user.rank.name} Hunter`,
+        text2: `Signed in as ${user.displayName}`,
       });
 
       return { accessToken, user };
-    } catch (error) {
-      console.error('Google sign-in error:', error);
-      
-      let message = 'Google sign-in failed';
-      if (error.code === 'SIGN_IN_CANCELLED') {
-        message = 'Sign-in was cancelled';
-      } else if (error.code === 'IN_PROGRESS') {
-        message = 'Sign-in is already in progress';
-      } else if (error.code === 'PLAY_SERVICES_NOT_AVAILABLE') {
-        message = 'Google Play services not available';
-      }
-
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Google sign-in failed';
       Toast.show({
         type: 'error',
         text1: 'Google Sign-In Failed',
         text2: message,
       });
-      
+      throw error;
+    }
+  }
+
+  // Get user info from Google using access token
+  static async getUserInfoFromGoogle(accessToken: string): Promise<any> {
+    try {
+      const response = await fetch('https://www.googleapis.com/userinfo/v2/me', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching Google user info:', error);
       throw error;
     }
   }
 
   // Logout
-  static async logout() {
+  static async logout(): Promise<void> {
     try {
       // Call backend logout
       await api.post('/auth/logout');
-
-      // Sign out from Google
-      if (await GoogleSignin.isSignedIn()) {
-        await GoogleSignin.signOut();
-      }
 
       // Clear local storage
       await TokenManager.clearAll();
@@ -135,15 +167,11 @@ export class AuthService {
       console.error('Logout error:', error);
       // Still clear local data even if backend call fails
       await TokenManager.clearAll();
-      
-      if (await GoogleSignin.isSignedIn()) {
-        await GoogleSignin.signOut();
-      }
     }
   }
 
   // Refresh Token
-  static async refreshToken() {
+  static async refreshToken(): Promise<AuthResponse> {
     try {
       const response = await api.post('/auth/refresh');
       const { accessToken, user } = response.data;
@@ -159,7 +187,7 @@ export class AuthService {
   }
 
   // Get Current User
-  static async getCurrentUser() {
+  static async getCurrentUser(): Promise<User | null> {
     try {
       const userString = await AsyncStorage.getItem('user');
       return userString ? JSON.parse(userString) : null;
@@ -170,7 +198,7 @@ export class AuthService {
   }
 
   // Check if user is authenticated
-  static async isAuthenticated() {
+  static async isAuthenticated(): Promise<boolean> {
     const token = await TokenManager.getAccessToken();
     const user = await this.getCurrentUser();
     return !!(token && user);
