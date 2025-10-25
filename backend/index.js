@@ -9,6 +9,7 @@ import adminRoutes from './route/Admin.js';
 import taskRoutes from './route/Task.js';
 import habitRoutes from './route/Habit.js';
 import leaderboardRoutes from './route/leaderboard.js';
+import challengeRoutes from './route/Challenge.js';
 import { initializeWebSocket } from './services/websocketService.js';
 
 dotenv.config();
@@ -44,6 +45,7 @@ app.use('/admin', adminRoutes);
 app.use('/tasks', taskRoutes);
 app.use('/habits', habitRoutes);
 app.use('/leaderboard', leaderboardRoutes);
+app.use('/challenges', challengeRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
