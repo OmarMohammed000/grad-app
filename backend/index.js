@@ -5,6 +5,7 @@ import cors from 'cors';
 import authRoutes from './route/Auth.js';
 import userRoutes from './route/User.js';
 import adminRoutes from './route/Admin.js';
+import taskRoutes from './route/Task.js';
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.use((req, res, next) => {
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/admin', adminRoutes);
+app.use('/tasks', taskRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
