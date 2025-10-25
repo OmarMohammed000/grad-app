@@ -1,4 +1,9 @@
 import db from '../models/index.js';
+import { 
+  emitUserProgress, 
+  emitLevelUp, 
+  emitRankUp 
+} from './websocketService.js';
 
 /**
  * XP Base Values by Difficulty
@@ -99,15 +104,22 @@ export function calculateHabitXP(habit, completionData = {}) {
  * @param {string} sourceId - Source entity ID
  * @returns {Object} { character, leveledUp, newLevel }
  */
-export async function awardXP(userId, xpAmount, source, sourceId) {
-  const transaction = await db.sequelize.transaction();
+export async function awardXP(userId, xpAmount, source, metadata = {}, transaction) {
+  const useTransaction = transaction || await db.sequelize.transaction();
 
   try {
     // Get user's character
     const character = await db.Character.findOne({
       where: { userId },
-      include: [{ model: db.Rank, as: 'rank' }],
-      transaction
+      include: [
+        { model: db.Rank, as: 'rank' },
+        { 
+          model: db.User, 
+          as: 'user',
+          include: [{ model: db.UserProfile, as: 'profile' }]
+        }
+      ],
+      transaction: useTransaction
     });
 
     if (!character) {
@@ -121,9 +133,21 @@ export async function awardXP(userId, xpAmount, source, sourceId) {
     character.currentXp += xpAmount;
     character.totalXp += xpAmount;
 
+    // Emit progress update via WebSocket
+    emitUserProgress(userId, {
+      xpEarned: xpAmount,
+      currentXP: character.currentXp,
+      totalXP: character.totalXp,
+      level: character.level,
+      xpToNextLevel: character.xpToNextLevel,
+      source,
+      metadata
+    });
+
     // Check for level up
     let leveledUp = false;
     let newLevel = oldLevel;
+    const levelUpDetails = [];
 
     while (character.currentXp >= character.xpToNextLevel) {
       character.currentXp -= character.xpToNextLevel;
@@ -133,6 +157,11 @@ export async function awardXP(userId, xpAmount, source, sourceId) {
 
       // Calculate next level XP requirement (grows moderately)
       character.xpToNextLevel = calculateXPForNextLevel(character.level);
+      
+      levelUpDetails.push({
+        level: character.level,
+        xpToNextLevel: character.xpToNextLevel
+      });
     }
 
     // Check for rank up
@@ -145,7 +174,7 @@ export async function awardXP(userId, xpAmount, source, sourceId) {
           minLevel: { [db.Sequelize.Op.lte]: character.level }
         },
         order: [['minLevel', 'DESC']],
-        transaction
+        transaction: useTransaction
       });
 
       if (nextRank && nextRank.id !== character.rankId) {
@@ -155,7 +184,7 @@ export async function awardXP(userId, xpAmount, source, sourceId) {
       }
     }
 
-    await character.save({ transaction });
+    await character.save({ transaction: useTransaction });
 
     // Log activity
     await db.ActivityLog.create({
@@ -167,7 +196,7 @@ export async function awardXP(userId, xpAmount, source, sourceId) {
       xpGained: xpAmount,
       isPublic: true,
       importance: leveledUp ? 'milestone' : 'info'
-    }, { transaction });
+    }, { transaction: useTransaction });
 
     // If ranked up, log that too
     if (rankedUp) {
@@ -178,21 +207,66 @@ export async function awardXP(userId, xpAmount, source, sourceId) {
         xpGained: 0,
         isPublic: true,
         importance: 'milestone'
-      }, { transaction });
+      }, { transaction: useTransaction });
     }
 
-    await transaction.commit();
+    if (!transaction) {
+      await useTransaction.commit();
+    }
+
+    // Emit WebSocket events after transaction commits
+    if (leveledUp) {
+      emitLevelUp(userId, {
+        user: {
+          id: userId,
+          displayName: character.user?.profile?.displayName || 'Anonymous'
+        },
+        oldLevel,
+        newLevel,
+        levelUpDetails,
+        currentXP: character.currentXp,
+        xpToNextLevel: character.xpToNextLevel
+      });
+    }
+
+    if (rankedUp) {
+      emitRankUp(userId, {
+        user: {
+          id: userId,
+          displayName: character.user?.profile?.displayName || 'Anonymous'
+        },
+        oldRank: oldRank?.name,
+        newRank: {
+          id: newRank.id,
+          name: newRank.name,
+          minLevel: newRank.minLevel
+        }
+      });
+    }
 
     return {
-      character: await character.reload({ include: [{ model: db.Rank, as: 'rank' }] }),
+      character: await character.reload({ 
+        include: [
+          { model: db.Rank, as: 'rank' },
+          { 
+            model: db.User, 
+            as: 'user',
+            include: [{ model: db.UserProfile, as: 'profile' }]
+          }
+        ] 
+      }),
       leveledUp,
       newLevel: leveledUp ? newLevel : null,
       rankedUp,
-      newRank: rankedUp ? newRank : null
+      newRank: rankedUp ? newRank : null,
+      currentXP: character.currentXp,
+      xpForNextLevel: character.xpToNextLevel
     };
 
   } catch (error) {
-    await transaction.rollback();
+    if (!transaction) {
+      await useTransaction.rollback();
+    }
     throw error;
   }
 }

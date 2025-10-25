@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'http';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
@@ -6,11 +7,18 @@ import authRoutes from './route/Auth.js';
 import userRoutes from './route/User.js';
 import adminRoutes from './route/Admin.js';
 import taskRoutes from './route/Task.js';
+import habitRoutes from './route/Habit.js';
+import leaderboardRoutes from './route/leaderboard.js';
+import { initializeWebSocket } from './services/websocketService.js';
 
 dotenv.config();
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 4000;
+
+// Initialize WebSocket
+const io = initializeWebSocket(server);
 
 // CORS Configuration - Allow all origins in development
 app.use(cors({
@@ -34,6 +42,8 @@ app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/admin', adminRoutes);
 app.use('/tasks', taskRoutes);
+app.use('/habits', habitRoutes);
+app.use('/leaderboard', leaderboardRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -54,11 +64,12 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server is running on port ${PORT}`);
   console.log(`📍 Local: http://localhost:${PORT}`);
-  console.log(`� Network: http://192.168.1.100:${PORT} (use this from mobile)`);
-  console.log(`�🔗 Health: http://localhost:${PORT}/health`);
+  console.log(`🌐 Network: http://192.168.1.100:${PORT} (use this from mobile)`);
+  console.log(`🔗 Health: http://localhost:${PORT}/health`);
+  console.log(`🔌 WebSocket: ws://192.168.1.100:${PORT}`);
   console.log('✅ Listening on all network interfaces (0.0.0.0)');
 });
 

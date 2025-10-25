@@ -1,5 +1,6 @@
 import db from "../../models/index.js";
 import { calculateTaskXP, awardXP } from "../../services/xpService.js";
+import { emitTaskCompleted } from "../../services/websocketService.js";
 
 /**
  * Complete a task
@@ -147,6 +148,18 @@ export default async function completeTask(req, res) {
     }, { transaction });
 
     await transaction.commit();
+
+    // Emit WebSocket event for task completion
+    emitTaskCompleted(req.user.userId, {
+      taskId: task.id,
+      taskTitle: task.title,
+      xpEarned,
+      wasEarly,
+      wasLate,
+      completedAt,
+      leveledUp: levelUpResult.leveledUp,
+      newLevel: levelUpResult.newLevel
+    });
 
     return res.status(200).json({
       message: "Task completed successfully",
