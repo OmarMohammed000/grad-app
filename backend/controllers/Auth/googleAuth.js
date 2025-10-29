@@ -167,7 +167,7 @@ export default async function googleAuth(req, res) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/api/auth/refresh'
+      path: '/auth/refresh'
     });
 
     // Return user data with access token

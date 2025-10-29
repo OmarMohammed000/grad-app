@@ -40,7 +40,7 @@ export const getGlobalLeaderboard = async (req, res) => {
       ],
       order: [
         ['level', 'DESC'],
-        ['currentXP', 'DESC']
+        ['currentXp', 'DESC']
       ],
       limit: parseInt(limit),
       offset: parseInt(offset)
@@ -53,14 +53,8 @@ export const getGlobalLeaderboard = async (req, res) => {
       displayName: char.user?.profile?.displayName || 'Anonymous',
       avatarUrl: char.user?.profile?.avatarUrl,
       level: char.level,
-      currentXP: char.currentXP,
-      totalXP: char.totalXP,
-      stats: {
-        strength: char.strength,
-        agility: char.agility,
-        intelligence: char.intelligence,
-        vitality: char.vitality
-      }
+      currentXp: char.currentXp,
+      totalXp: char.totalXp
     }));
 
     // Get current user's rank
@@ -77,7 +71,7 @@ export const getGlobalLeaderboard = async (req, res) => {
               { level: { [db.Sequelize.Op.gt]: userCharacter.level } },
               {
                 level: userCharacter.level,
-                currentXP: { [db.Sequelize.Op.gt]: userCharacter.currentXP }
+              currentXp: { [db.Sequelize.Op.gt]: userCharacter.currentXp }
               }
             ],
             ...dateFilter

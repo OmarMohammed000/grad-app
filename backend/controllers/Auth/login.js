@@ -87,7 +87,7 @@ export default async function login(req, res) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: 'auth/refresh'
+      path: '/auth/refresh'
     };
 
     res.cookie('refreshToken', refreshToken, cookieOptions);

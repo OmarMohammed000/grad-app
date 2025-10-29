@@ -20,7 +20,7 @@ export default async function logout(req, res) {
 
     // Clear refresh token cookie
     res.clearCookie('refreshToken', {
-      path: '/api/auth/refresh',
+      path: '/auth/refresh',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

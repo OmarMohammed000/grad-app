@@ -55,10 +55,10 @@ export default async function deleteTask(req, res) {
       // Log activity
       await db.ActivityLog.create({
         userId: req.user.userId,
-        action: 'task_deleted_permanent',
-        entityType: 'Task',
-        entityId: task.id,
-        metadata: { title: task.title }
+        activityType: 'task_deleted',
+        description: `Task permanently deleted: ${task.title}`,
+        xpGained: 0,
+        metadata: { taskId: task.id, title: task.title, permanent: true }
       }, { transaction });
 
       await transaction.commit();
@@ -81,10 +81,10 @@ export default async function deleteTask(req, res) {
       // Log activity
       await db.ActivityLog.create({
         userId: req.user.userId,
-        action: 'task_deleted_soft',
-        entityType: 'Task',
-        entityId: task.id,
-        metadata: { title: task.title }
+        activityType: 'task_deleted',
+        description: `Task archived: ${task.title}`,
+        xpGained: 0,
+        metadata: { taskId: task.id, title: task.title, permanent: false }
       }, { transaction });
 
       await transaction.commit();

@@ -104,10 +104,10 @@ export default async function updateTask(req, res) {
     // Log activity
     await db.ActivityLog.create({
       userId: req.user.userId,
-      action: 'task_updated',
-      entityType: 'Task',
-      entityId: task.id,
-      metadata: { updates: Object.keys(updates) }
+      activityType: 'task_updated',
+      description: `Task updated: ${task.title}`,
+      xpGained: 0,
+      metadata: { taskId: task.id, updates: Object.keys(updates) }
     });
 
     // Reload with associations

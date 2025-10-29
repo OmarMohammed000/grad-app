@@ -130,16 +130,22 @@ export default async function completeTask(req, res) {
     }
 
     // Award XP to user
-    const levelUpResult = await awardXP(req.user.userId, xpEarned, transaction);
+    const levelUpResult = await awardXP(
+      req.user.userId,
+      xpEarned,
+      'task_completed',
+      { taskId: task.id },
+      transaction
+    );
 
     // Log activity
     await db.ActivityLog.create({
       userId: req.user.userId,
-      action: 'task_completed',
-      entityType: 'Task',
-      entityId: task.id,
+      activityType: 'task_completed',
+      description: `Task completed: ${task.title}`,
+      xpGained: xpEarned,
       metadata: {
-        xpEarned,
+        taskId: task.id,
         wasEarly,
         wasLate,
         leveledUp: levelUpResult.leveledUp,

@@ -48,7 +48,7 @@ export default async function refreshToken(req, res) {
 
     if (!user) {
       res.clearCookie('refreshToken', {
-        path: '/api/auth/refresh'
+        path: '/auth/refresh'
       });
       return res.status(403).json({ message: "Invalid refresh token" });
     }
@@ -56,7 +56,7 @@ export default async function refreshToken(req, res) {
     // Check if account is active
     if (!user.isActive) {
       res.clearCookie('refreshToken', {
-        path: '/api/auth/refresh'
+        path: '/auth/refresh'
       });
       return res.status(403).json({ message: "Account is deactivated" });
     }
@@ -84,7 +84,7 @@ export default async function refreshToken(req, res) {
     // Set new refresh token cookie
     res.cookie('refreshToken', newRefreshToken, {
       httpOnly: true,
-      path: '/api/auth/refresh',
+      path: '/auth/refresh',
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
