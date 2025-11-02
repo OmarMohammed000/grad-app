@@ -1,19 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Alert,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
+  TouchableOpacity,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
-import { ThemedView } from '@/components/themed-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedCard } from '@/components/themed-card';
-import { ThemedButton } from '@/components/themed-button';
-import { ThemedInput } from '@/components/themed-input';
-import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { Input, Button, Card, Divider } from '@/components/form';
 import AuthService from '@/services/auth';
 import { useGoogleAuth } from '@/hooks/useGoogleAuth';
 
 export default function RegisterScreen() {
+  const theme = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -23,8 +29,15 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  // Google Auth Hook - Note: this will log but won't auto-trigger
-  // The hook must be called unconditionally per React rules
+  // Validation errors
+  const [errors, setErrors] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    displayName: '',
+  });
+
+  // Google Auth Hook
   const { request, response, promptAsync } = useGoogleAuth();
 
   // Handle Google OAuth response
@@ -48,23 +61,14 @@ export default function RegisterScreen() {
     }
 
     try {
-      // Send ID token to backend for verification
       await AuthService.googleSignIn(idToken);
-      router.replace('/(tabs)'); // Navigate to main app
+      router.replace('/(tabs)');
     } catch (error: any) {
       Alert.alert('Sign-In Error', error.message || 'Failed to complete Google sign-in');
     } finally {
       setGoogleLoading(false);
     }
   };
-
-  // Validation
-  const [errors, setErrors] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    displayName: '',
-  });
 
   const validateForm = () => {
     const newErrors = {
@@ -108,41 +112,26 @@ export default function RegisterScreen() {
   };
 
   const handleRegister = async () => {
-    console.log('=== HANDLE REGISTER CALLED ===');
-    console.log('Email:', email);
-    console.log('Display Name:', displayName);
-    
     if (!validateForm()) {
-      console.log('Form validation failed');
       return;
     }
 
     setLoading(true);
     try {
-      console.log('Starting registration...');
-      console.log('API URL:', process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000');
       await AuthService.register(email, password, displayName);
-      console.log('Registration successful, logging in...');
       // Auto login after registration
       await AuthService.login(email, password);
-      console.log('Login successful, navigating to tabs');
       router.replace('/(tabs)');
     } catch (error: any) {
       // Error handled by AuthService with toast
-      console.error('Registration error:', error);
-      console.error('Error response:', error.response?.data);
-      console.error('Error status:', error.response?.status);
-      console.error('Error message:', error.message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
-    console.log('=== HANDLE GOOGLE SIGN-IN CALLED ===');
     setGoogleLoading(true);
     try {
-      // Trigger Google Sign-In prompt
       await promptAsync();
     } catch (error) {
       Alert.alert('Error', 'Failed to start Google sign-in');
@@ -151,113 +140,106 @@ export default function RegisterScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <ThemedView style={styles.container}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoid}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
           {/* Header */}
-          <ThemedView style={styles.header}>
-            <ThemedText type="title" style={styles.title}>
-              Join the Hunt
-            </ThemedText>
-            <ThemedText style={styles.subtitle}>
-              Create your Hunter account and begin your journey 🎯
-            </ThemedText>
-          </ThemedView>
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: theme.colors.text }]}>
+              Ready to rise?
+            </Text>
+            <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+              Create your account and begin your journey 🎯
+            </Text>
+          </View>
 
           {/* Registration Form Card */}
-          <ThemedCard style={styles.card}>
-            <ThemedInput
+          <Card style={styles.card}>
+            <Input
               label="Display Name"
-              placeholder="Hunter Name"
+              leftIcon="person-outline"
+              placeholder="Name"
               value={displayName}
               onChangeText={setDisplayName}
-              leftIcon="person-outline"
               error={errors.displayName}
               autoCapitalize="words"
             />
 
-            <ThemedInput
+            <Input
               label="Email"
-              placeholder="hunter@example.com"
+              leftIcon="mail-outline"
+              placeholder="email@example.com"
               value={email}
               onChangeText={setEmail}
-              leftIcon="mail-outline"
               error={errors.email}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
             />
 
-            <ThemedInput
+            <Input
               label="Password"
+              leftIcon="lock-closed-outline"
               placeholder="At least 6 characters"
               value={password}
               onChangeText={setPassword}
-              leftIcon="lock-closed-outline"
-              rightIcon={showPassword ? 'eye-outline' : 'eye-off-outline'}
-              onRightIconPress={() => setShowPassword(!showPassword)}
               error={errors.password}
               secureTextEntry={!showPassword}
+              rightIcon={showPassword ? 'eye-outline' : 'eye-off-outline'}
+              onRightIconPress={() => setShowPassword(!showPassword)}
             />
 
-            <ThemedInput
+            <Input
               label="Confirm Password"
+              leftIcon="lock-closed-outline"
               placeholder="Re-enter your password"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
-              leftIcon="lock-closed-outline"
-              rightIcon={showConfirmPassword ? 'eye-outline' : 'eye-off-outline'}
-              onRightIconPress={() => setShowConfirmPassword(!showConfirmPassword)}
               error={errors.confirmPassword}
               secureTextEntry={!showConfirmPassword}
+              rightIcon={showConfirmPassword ? 'eye-outline' : 'eye-off-outline'}
+              onRightIconPress={() => setShowConfirmPassword(!showConfirmPassword)}
             />
 
-            <ThemedButton
+            <Button
               title="Create Account"
-              variant="primary"
-              size="large"
-              fullWidth
+              onPress={handleRegister}
               loading={loading}
               disabled={googleLoading}
-              onPress={handleRegister}
+              fullWidth
               icon={<Ionicons name="checkmark-circle-outline" size={20} color="white" />}
-              style={styles.registerButton}
             />
-          </ThemedCard>
+          </Card>
 
-          {/* Divider */}
-          <ThemedView style={styles.divider}>
-            <ThemedView style={styles.dividerLine} />
-            <ThemedText style={styles.dividerText}>OR</ThemedText>
-            <ThemedView style={styles.dividerLine} />
-          </ThemedView>
+          <Divider />
 
           {/* Google Sign-In */}
-          <ThemedButton
+          <Button
             title="Continue with Google"
             variant="outline"
-            size="large"
-            fullWidth
+            onPress={handleGoogleSignIn}
             loading={googleLoading}
             disabled={loading || !request}
-            onPress={handleGoogleSignIn}
-            icon={<Ionicons name="logo-google" size={20} color="#4285f4" />}
+            fullWidth
+            icon={<Ionicons name="logo-google" size={20} color={theme.colors.primary} />}
           />
 
           {/* Login Link */}
-          <ThemedView style={styles.footer}>
-            <ThemedText style={styles.footerText}>
+          <View style={styles.footer}>
+            <Text style={[styles.footerText, { color: theme.colors.textSecondary }]}>
               Already have an account?{' '}
-            </ThemedText>
-            <ThemedButton
-              title="Sign In"
-              variant="ghost"
-              size="small"
-              onPress={() => router.push('/login')}
-            />
-          </ThemedView>
-        </ThemedView>
-      </ScrollView>
+            </Text>
+            <TouchableOpacity onPress={() => router.push('/login')}>
+              <Text style={[styles.linkText, { color: theme.colors.primary }]}>
+                Sign In
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -266,66 +248,43 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
+  keyboardAvoid: {
+    flex: 1,
+  },
   scrollContainer: {
     flexGrow: 1,
-  },
-  container: {
-    flex: 1,
-    padding: Spacing.md,
+    padding: 20,
+    paddingTop: 40,
   },
   header: {
     alignItems: 'center',
-    marginBottom: Spacing.lg,
-    marginTop: Spacing.md,
+    marginBottom: 32,
   },
   title: {
-    marginBottom: Spacing.sm,
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
+    fontSize: 16,
     textAlign: 'center',
-    opacity: 0.7,
+    opacity: 0.8,
   },
   card: {
-    marginBottom: Spacing.md,
-  },
-  registerButton: {
-    marginTop: Spacing.sm,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: Spacing.lg,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e0e0e0',
-  },
-  dividerText: {
-    marginHorizontal: Spacing.md,
-    opacity: 0.6,
+    marginBottom: 16,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: Spacing.lg,
+    marginTop: 24,
   },
   footerText: {
-    opacity: 0.7,
+    fontSize: 14,
   },
-  infoCard: {
-    marginTop: Spacing.lg,
-    backgroundColor: '#f0f8ff',
-  },
-  infoTitle: {
+  linkText: {
+    fontSize: 14,
     fontWeight: '600',
-    marginBottom: Spacing.sm,
-    fontSize: 16,
-  },
-  infoText: {
-    lineHeight: 24,
-    opacity: 0.8,
   },
 });
