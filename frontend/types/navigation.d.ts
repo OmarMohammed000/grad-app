@@ -10,6 +10,9 @@ declare global {
       login: undefined;
       register: undefined;
       '(tabs)': undefined;
+      'tasks': undefined;
+      'challenges': undefined;
+      'profile': undefined;
     }
   }
 }
