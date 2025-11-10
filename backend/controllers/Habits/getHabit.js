@@ -12,7 +12,7 @@ export const getHabit = async (req, res) => {
           model: HabitCompletion,
           as: 'completions',
           limit: 30,
-          order: [['completedAt', 'DESC']]
+          order: [['completedDate', 'DESC']]
         }
       ]
     });

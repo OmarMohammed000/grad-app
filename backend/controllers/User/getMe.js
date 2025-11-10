@@ -19,7 +19,7 @@ export default async function getMe(req, res) {
             {
               model: db.Rank,
               as: 'rank',
-              attributes: ['name', 'color', 'minXp', 'maxXp']
+              attributes: ['name', 'color', 'minLevel', 'maxLevel']
             }
           ]
         }

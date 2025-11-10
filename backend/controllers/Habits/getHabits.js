@@ -47,39 +47,22 @@ export const getHabits = async (req, res) => {
     // Pagination
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    // Get habits with completion count
+    // Get habits (simplified query without GROUP BY for better reliability)
     const { count, rows: habits } = await Habit.findAndCountAll({
       where,
       limit: parseInt(limit),
       offset,
       order: [[sortBy, order.toUpperCase()]],
-      include: [
-        {
-          model: db.HabitCompletion,
-          as: 'completions',
-          attributes: [],
-          required: false
-        }
-      ],
-      attributes: {
-        include: [
-          [
-            db.sequelize.fn('COUNT', db.sequelize.col('completions.id')),
-            'completionCount'
-          ]
-        ]
-      },
-      group: ['Habit.id'],
-      subQuery: false
+      distinct: true
     });
 
     res.json({
       habits,
       pagination: {
-        total: count.length,
+        total: count,
         page: parseInt(page),
         limit: parseInt(limit),
-        totalPages: Math.ceil(count.length / parseInt(limit))
+        totalPages: Math.ceil(count / parseInt(limit))
       }
     });
   } catch (error) {

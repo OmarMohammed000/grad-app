@@ -9,7 +9,7 @@ export const completeHabit = async (req, res) => {
 
   try {
     const { id } = req.params;
-    const { notes, completedAt = new Date() } = req.body;
+    const { completedAt = new Date() } = req.body;
 
     const habit = await Habit.findByPk(id, {
       include: [
@@ -17,7 +17,7 @@ export const completeHabit = async (req, res) => {
           model: HabitCompletion,
           as: 'completions',
           limit: 7,
-          order: [['completedAt', 'DESC']]
+          order: [['completedDate', 'DESC']]
         }
       ],
       transaction
@@ -39,18 +39,15 @@ export const completeHabit = async (req, res) => {
     }
 
     // Check if already completed today
-    const today = new Date(completedAt);
+    const completionDateObj = new Date(completedAt);
+    const todayDateStr = completionDateObj.toISOString().split('T')[0]; // YYYY-MM-DD format
+    const today = new Date(completionDateObj);
     today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
 
     const alreadyCompletedToday = await HabitCompletion.findOne({
       where: {
         habitId: id,
-        completedAt: {
-          [db.Sequelize.Op.gte]: today,
-          [db.Sequelize.Op.lt]: tomorrow
-        }
+        completedDate: todayDateStr
       },
       transaction
     });
@@ -68,7 +65,7 @@ export const completeHabit = async (req, res) => {
     let newStreak = habit.currentStreak;
 
     if (lastCompletion) {
-      const lastDate = new Date(lastCompletion.completedAt);
+      const lastDate = new Date(lastCompletion.completedDate + 'T00:00:00');
       lastDate.setHours(0, 0, 0, 0);
       const daysDiff = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
 
@@ -90,13 +87,17 @@ export const completeHabit = async (req, res) => {
     // Check weekly consistency for bonus
     const weekAgo = new Date(today);
     weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekAgoStr = weekAgo.toISOString().split('T')[0];
+    const tomorrowStr = new Date(today);
+    tomorrowStr.setDate(tomorrowStr.getDate() + 1);
+    const tomorrowDateStr = tomorrowStr.toISOString().split('T')[0];
     
     const thisWeekCompletions = await HabitCompletion.count({
       where: {
         habitId: id,
-        completedAt: {
-          [db.Sequelize.Op.gte]: weekAgo,
-          [db.Sequelize.Op.lt]: tomorrow
+        completedDate: {
+          [db.Sequelize.Op.gte]: weekAgoStr,
+          [db.Sequelize.Op.lt]: tomorrowDateStr
         }
       },
       transaction
@@ -112,28 +113,32 @@ export const completeHabit = async (req, res) => {
       completedAllTargetDaysThisWeek
     });
 
+    // Extract time from completedAt for completionTime field
+    const completionTime = completionDateObj.toTimeString().split(' ')[0].substring(0, 5); // HH:MM format
+
     // Create completion record
     const completion = await HabitCompletion.create({
       habitId: id,
       userId: req.user.userId,
-      completedAt,
-      notes,
-      xpAwarded: xpEarned,
-      streakAtCompletion: newStreak
+      completedDate: todayDateStr,
+      completionTime: completionTime,
+      xpEarned: xpEarned,
+      streakCount: newStreak
     }, { transaction });
 
     // Update habit stats
     habit.currentStreak = newStreak;
     habit.longestStreak = Math.max(habit.longestStreak, newStreak);
     habit.totalCompletions += 1;
-    habit.lastCompletedAt = completedAt;
+    // Set lastCompletedDate to the date part only (YYYY-MM-DD)
+    habit.lastCompletedDate = todayDateStr;
     await habit.save({ transaction });
 
     // Award XP and handle level-ups
     const result = await awardXP(
       req.user.userId,
       xpEarned,
-      'habit_completion',
+      'habit_completed',
       { habitId: id, completionId: completion.id },
       transaction
     );
@@ -146,7 +151,8 @@ export const completeHabit = async (req, res) => {
       habitTitle: habit.title,
       xpEarned,
       streak: newStreak,
-      completedAt,
+      completedDate: todayDateStr,
+      completedAt: completedAt, // Keep for backward compatibility
       leveledUp: result.leveledUp,
       newLevel: result.newLevel
     });

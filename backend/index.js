@@ -23,7 +23,7 @@ const io = initializeWebSocket(server);
 
 // CORS Configuration - Allow all origins in development
 app.use(cors({
-  origin: true, // Reflects the request origin
+  origin:['http://localhost:5173','http://localhost:8081'], // Reflects the request origin
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],

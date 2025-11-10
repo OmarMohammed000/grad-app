@@ -187,16 +187,34 @@ export async function awardXP(userId, xpAmount, source, metadata = {}, transacti
     await character.save({ transaction: useTransaction });
 
     // Log activity
-    await db.ActivityLog.create({
+    let description = '';
+    if (leveledUp) {
+      description = `Leveled up to ${newLevel}! Earned ${xpAmount} XP`;
+    } else if (source === 'habit_completed') {
+      description = `Completed habit and earned ${xpAmount} XP`;
+    } else if (source === 'task_completed') {
+      description = `Completed task and earned ${xpAmount} XP`;
+    } else {
+      description = `Earned ${xpAmount} XP`;
+    }
+
+    const activityLogData = {
       userId,
       activityType: source,
-      description: leveledUp 
-        ? `Leveled up to ${newLevel}! Earned ${xpAmount} XP`
-        : `Earned ${xpAmount} XP`,
+      description,
       xpGained: xpAmount,
       isPublic: true,
-      importance: leveledUp ? 'milestone' : 'info'
-    }, { transaction: useTransaction });
+      importance: leveledUp ? 'milestone' : 'medium'
+    };
+
+    // Add related IDs based on source type
+    if (source === 'habit_completed' && metadata.habitId) {
+      activityLogData.relatedHabitId = metadata.habitId;
+    } else if (source === 'task_completed' && metadata.taskId) {
+      activityLogData.relatedTaskId = metadata.taskId;
+    }
+
+    await db.ActivityLog.create(activityLogData, { transaction: useTransaction });
 
     // If ranked up, log that too
     if (rankedUp) {
