@@ -167,13 +167,16 @@ export class HabitService {
    */
   static async deleteHabit(id: string, permanent: boolean = false): Promise<{ message: string }> {
     try {
+      console.log('HabitService.deleteHabit called with id:', id, 'permanent:', permanent);
       const response = await api.delete(`/habits/${id}`, {
         params: { permanent: permanent ? 'true' : 'false' },
       });
+      console.log('Delete habit response:', response.data);
       Toast.show({
         type: 'success',
         text1: 'Success',
         text2: permanent ? 'Habit permanently deleted' : 'Habit deactivated',
+        visibilityTime: 2000,
       });
       return response.data;
     } catch (error: any) {
@@ -183,6 +186,7 @@ export class HabitService {
         type: 'error',
         text1: 'Error',
         text2: message,
+        visibilityTime: 3000,
       });
       throw error;
     }
@@ -232,6 +236,39 @@ export class HabitService {
           text2: message,
         });
       }
+      throw error;
+    }
+  }
+
+  /**
+   * Uncomplete a habit (remove today's completion)
+   */
+  static async uncompleteHabit(
+    id: string,
+    completedDate?: string
+  ): Promise<{
+    message: string;
+    habit: Habit;
+    xpRemoved: number;
+  }> {
+    try {
+      const response = await api.delete(`/habits/${id}/complete`, {
+        data: { completedDate },
+      });
+      Toast.show({
+        type: 'success',
+        text1: 'Completion Removed',
+        text2: 'Habit completion has been removed',
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error uncompleting habit:', error);
+      const message = error.response?.data?.message || 'Failed to remove completion';
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: message,
+      });
       throw error;
     }
   }

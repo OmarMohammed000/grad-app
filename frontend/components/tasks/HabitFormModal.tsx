@@ -19,7 +19,7 @@ interface HabitFormModalProps {
   habit?: Habit | null;
   onClose: () => void;
   onSubmit: (data: CreateHabitData | UpdateHabitData) => Promise<void>;
-  onDelete?: (habitId: string) => Promise<void>;
+  onDelete?: (habitId: string) => void;
 }
 
 const DIFFICULTIES: Array<{ label: string; value: 'easy' | 'medium' | 'hard' | 'extreme' }> = [
@@ -233,25 +233,38 @@ export function HabitFormModal({
 
               {/* Actions */}
               <View style={styles.actions}>
-                {habit && onDelete && (
-                  <Button
-                    title="Delete"
-                    variant="ghost"
-                    onPress={async () => {
-                      if (onDelete) {
-                        await onDelete(habit.id);
-                        onClose();
-                      }
-                    }}
-                    style={[styles.deleteButton, { borderColor: theme.colors.danger }]}
-                  />
-                )}
                 <Button
                   title="Cancel"
                   variant="outline"
                   onPress={onClose}
                   style={styles.cancelButton}
                 />
+                {habit && onDelete && (
+                  <TouchableOpacity
+                    style={[
+                      styles.deleteButtonCustom,
+                      {
+                        borderColor: theme.colors.danger,
+                        backgroundColor: 'transparent',
+                      },
+                      theme.shadows.sm,
+                    ]}
+                    onPress={() => {
+                      console.log('Delete button pressed for habit:', habit.id);
+                      if (onDelete) {
+                        onDelete(habit.id);
+                      } else {
+                        console.warn('onDelete handler is not provided');
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={theme.colors.danger} />
+                    <Text style={[styles.deleteButtonText, { color: theme.colors.danger }]}>
+                      Delete
+                    </Text>
+                  </TouchableOpacity>
+                )}
                 <Button
                   title={habit ? 'Update' : 'Create'}
                   variant="primary"
@@ -334,8 +347,23 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   deleteButton: {
-    borderWidth: 1,
-    borderColor: '#dc3545',
+    borderWidth: 2,
+    minWidth: 100,
+  },
+  deleteButtonCustom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    minWidth: 100,
+    gap: 8,
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   cancelButton: {
     flex: 1,

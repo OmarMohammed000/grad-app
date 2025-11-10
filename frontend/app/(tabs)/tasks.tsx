@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl, Alert } from 'react-native';
+import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
   TasksHeader,
@@ -9,6 +9,7 @@ import {
   EmptyState,
 } from '@/components/tasks';
 import { HabitFormModal } from '@/components/tasks/HabitFormModal';
+import { ConfirmDialog } from '@/components/tasks/ConfirmDialog';
 import HabitService, { Habit, CreateHabitData, UpdateHabitData } from '@/services/habits';
 import UserService, { User } from '@/services/user';
 
@@ -40,6 +41,8 @@ export default function TasksScreen() {
   // Modal state
   const [showHabitModal, setShowHabitModal] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [habitToDelete, setHabitToDelete] = useState<string | null>(null);
 
   // Fetch user data
   const fetchUserData = useCallback(async () => {
@@ -95,35 +98,54 @@ export default function TasksScreen() {
     if (!habit) return;
 
     try {
-      if (HabitService.isHabitCompletedToday(habit)) {
-        // Already completed today - could show message or allow undo
-        Alert.alert('Already Completed', 'This habit has already been completed today.');
-        return;
+      const isCompleted = HabitService.isHabitCompletedToday(habit);
+
+      if (isCompleted) {
+        // Uncomplete the habit
+        const result = await HabitService.uncompleteHabit(habitId);
+        
+        // Update local state
+        setHabits((prev) =>
+          prev.map((h) =>
+            h.id === habitId
+              ? {
+                  ...h,
+                  completedToday: false,
+                  currentStreak: result.habit.currentStreak,
+                  totalCompletions: result.habit.totalCompletions,
+                  lastCompletedDate: result.habit.lastCompletedDate,
+                }
+              : h
+          )
+        );
+
+        // Refresh user data to update XP/level
+        await fetchUserData();
+      } else {
+        // Complete the habit
+        const result = await HabitService.completeHabit(habitId);
+        
+        // Update local state
+        setHabits((prev) =>
+          prev.map((h) =>
+            h.id === habitId
+              ? {
+                  ...h,
+                  completedToday: true,
+                  currentStreak: result.habit.currentStreak,
+                  longestStreak: result.habit.longestStreak,
+                  totalCompletions: result.habit.totalCompletions,
+                  lastCompletedDate: result.habit.lastCompletedDate,
+                }
+              : h
+          )
+        );
+
+        // Refresh user data to update XP/level
+        await fetchUserData();
       }
-
-      // Complete the habit
-      const result = await HabitService.completeHabit(habitId);
-      
-      // Update local state
-      setHabits((prev) =>
-        prev.map((h) =>
-          h.id === habitId
-            ? {
-                ...h,
-                completedToday: true,
-                currentStreak: result.habit.currentStreak,
-                longestStreak: result.habit.longestStreak,
-                totalCompletions: result.habit.totalCompletions,
-                lastCompletedDate: result.habit.lastCompletedDate,
-              }
-            : h
-        )
-      );
-
-      // Refresh user data to update XP/level
-      await fetchUserData();
     } catch (error) {
-      console.error('Error completing habit:', error);
+      console.error('Error toggling habit:', error);
       // Error toast is already shown by HabitService
     }
   };
@@ -157,35 +179,50 @@ export default function TasksScreen() {
   };
 
   const handleDeleteHabit = (habitId: string) => {
-    return new Promise<void>((resolve) => {
-      Alert.alert(
-        'Delete Habit',
-        'Are you sure you want to delete this habit?',
-        [
-          { 
-            text: 'Cancel', 
-            style: 'cancel',
-            onPress: () => resolve()
-          },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await HabitService.deleteHabit(habitId, false);
-                await fetchHabits();
-                setShowHabitModal(false);
-                setEditingHabit(null);
-                resolve();
-              } catch (error) {
-                console.error('Error deleting habit:', error);
-                resolve();
-              }
-            },
-          },
-        ]
-      );
-    });
+    console.log('handleDeleteHabit called with habitId:', habitId);
+    setHabitToDelete(habitId);
+    setShowDeleteConfirm(true);
+    console.log('Delete confirmation dialog should now be visible');
+  };
+
+  const confirmDeleteHabit = async () => {
+    if (!habitToDelete) return;
+
+    console.log('Delete confirmed by user, proceeding with deletion...', habitToDelete);
+    
+    try {
+      // Close modals first for immediate feedback
+      setShowDeleteConfirm(false);
+      setShowHabitModal(false);
+      setEditingHabit(null);
+      
+      // Delete the habit
+      console.log('Calling HabitService.deleteHabit...');
+      await HabitService.deleteHabit(habitToDelete, false);
+      console.log('Habit deleted successfully, refreshing habits list...');
+      
+      // Refresh habits list
+      await fetchHabits();
+      console.log('Habits list refreshed');
+      
+      setHabitToDelete(null);
+    } catch (error: any) {
+      console.error('Error deleting habit:', error);
+      // Error toast is already shown by HabitService
+      // Reopen modal if delete failed so user can try again
+      const habitToReopen = habits.find(h => h.id === habitToDelete);
+      if (habitToReopen) {
+        setEditingHabit(habitToReopen);
+        setShowHabitModal(true);
+      }
+      setHabitToDelete(null);
+    }
+  };
+
+  const cancelDeleteHabit = () => {
+    console.log('Delete cancelled by user');
+    setShowDeleteConfirm(false);
+    setHabitToDelete(null);
   };
 
   const handleSubmitHabit = async (data: CreateHabitData | UpdateHabitData) => {
@@ -296,6 +333,18 @@ export default function TasksScreen() {
         }}
         onSubmit={handleSubmitHabit}
         onDelete={handleDeleteHabit}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        visible={showDeleteConfirm}
+        title="Delete Habit"
+        message="Are you sure you want to delete this habit? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmButtonStyle="destructive"
+        onConfirm={confirmDeleteHabit}
+        onCancel={cancelDeleteHabit}
       />
     </View>
   );
