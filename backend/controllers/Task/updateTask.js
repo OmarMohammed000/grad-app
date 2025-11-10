@@ -22,6 +22,7 @@ export default async function updateTask(req, res) {
       parentTaskId,
       orderIndex
     } = req.body;
+    // reminderTime is accessed directly from req.body to avoid scope issues
 
     // Find task and verify ownership
     const task = await db.Task.findOne({
@@ -91,7 +92,45 @@ export default async function updateTask(req, res) {
       }
     }
     if (status !== undefined) updates.status = status;
-    if (dueDate !== undefined) updates.dueDate = dueDate;
+    
+    // Validate and parse dueDate
+    if (dueDate !== undefined) {
+      if (dueDate === null || dueDate === '') {
+        updates.dueDate = null;
+      } else {
+        let parsedDueDate = null;
+        if (dueDate instanceof Date) {
+          parsedDueDate = isNaN(dueDate.getTime()) ? null : dueDate;
+        } else if (typeof dueDate === 'string') {
+          const dateObj = new Date(dueDate);
+          parsedDueDate = isNaN(dateObj.getTime()) ? null : dateObj;
+        }
+        updates.dueDate = parsedDueDate;
+      }
+    }
+    
+    // Validate and parse reminderTime (safely handle if not in req.body)
+    const reminderTimeValue = req.body.reminderTime;
+    if (reminderTimeValue !== undefined) {
+      if (reminderTimeValue === null || reminderTimeValue === '') {
+        updates.reminderTime = null;
+      } else {
+        let parsedReminderTime = null;
+        try {
+          if (reminderTimeValue instanceof Date) {
+            parsedReminderTime = isNaN(reminderTimeValue.getTime()) ? null : reminderTimeValue;
+          } else if (typeof reminderTimeValue === 'string' && reminderTimeValue.trim() !== '') {
+            const dateObj = new Date(reminderTimeValue.trim());
+            parsedReminderTime = isNaN(dateObj.getTime()) ? null : dateObj;
+          }
+        } catch (error) {
+          console.error('Error parsing reminderTime:', error);
+          parsedReminderTime = null;
+        }
+        updates.reminderTime = parsedReminderTime;
+      }
+    }
+    
     if (tags !== undefined) updates.tags = tags;
     if (metadata !== undefined) updates.metadata = metadata;
     if (isRecurring !== undefined) updates.isRecurring = isRecurring;
@@ -107,7 +146,10 @@ export default async function updateTask(req, res) {
       activityType: 'task_updated',
       description: `Task updated: ${task.title}`,
       xpGained: 0,
-      metadata: { taskId: task.id, updates: Object.keys(updates) }
+      isPublic: false,
+      importance: 'medium',
+      relatedTaskId: task.id,
+      metadata: { updates: Object.keys(updates) }
     });
 
     // Reload with associations

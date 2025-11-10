@@ -62,6 +62,48 @@ export default async function createTask(req, res) {
     // Calculate default XP if not provided
     const finalXpReward = xpReward || getDefaultXP('task', difficulty);
 
+    // Validate and parse dueDate
+    // Handle null, undefined, empty string, or valid date string/object
+    let parsedDueDate = null;
+    if (dueDate !== null && dueDate !== undefined && dueDate !== '') {
+      try {
+        if (dueDate instanceof Date) {
+          parsedDueDate = isNaN(dueDate.getTime()) ? null : dueDate;
+        } else if (typeof dueDate === 'string' && dueDate.trim() !== '') {
+          // Parse the ISO string or date string
+          const dateObj = new Date(dueDate.trim());
+          if (!isNaN(dateObj.getTime())) {
+            parsedDueDate = dateObj;
+          } else {
+            console.warn('Invalid dueDate string:', dueDate);
+            // Leave as null if invalid
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing dueDate:', error);
+        // Leave as null if parsing fails
+      }
+    }
+
+    // Validate and parse reminderTime
+    let parsedReminderTime = null;
+    if (reminderTime !== null && reminderTime !== undefined && reminderTime !== '') {
+      try {
+        if (reminderTime instanceof Date) {
+          parsedReminderTime = isNaN(reminderTime.getTime()) ? null : reminderTime;
+        } else if (typeof reminderTime === 'string' && reminderTime.trim() !== '') {
+          const dateObj = new Date(reminderTime.trim());
+          if (!isNaN(dateObj.getTime())) {
+            parsedReminderTime = dateObj;
+          } else {
+            console.warn('Invalid reminderTime string:', reminderTime);
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing reminderTime:', error);
+      }
+    }
+
     // Create task for current user
     const task = await db.Task.create({
       userId: req.user.userId, // User-specific
@@ -71,8 +113,8 @@ export default async function createTask(req, res) {
       difficulty,
       xpReward: finalXpReward,
       tags: Array.isArray(tags) ? tags : [],
-      dueDate: dueDate || null,
-      reminderTime: reminderTime || null,
+      dueDate: parsedDueDate,
+      reminderTime: parsedReminderTime,
       estimatedDuration: estimatedDuration || null,
       location: location?.trim() || null,
       isRecurring,
@@ -89,7 +131,7 @@ export default async function createTask(req, res) {
       description: `Created task: ${task.title}`,
       xpGained: 0,
       isPublic: false,
-      importance: 'info'
+      importance: 'medium'
     });
 
     return res.status(201).json({

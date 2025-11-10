@@ -9,19 +9,13 @@ import {
   EmptyState,
 } from '@/components/tasks';
 import { HabitFormModal } from '@/components/tasks/HabitFormModal';
+import { TodoFormModal } from '@/components/tasks/TodoFormModal';
 import { ConfirmDialog } from '@/components/tasks/ConfirmDialog';
 import HabitService, { Habit, CreateHabitData, UpdateHabitData } from '@/services/habits';
+import TodoService, { Todo, CreateTodoData, UpdateTodoData } from '@/services/todos';
 import UserService, { User } from '@/services/user';
 
-// Types
-interface Todo {
-  id: string;
-  title: string;
-  description?: string;
-  dueDate?: Date;
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
-}
+// Types - Todo is now imported from TodoService
 
 export default function TasksScreen() {
   const theme = useTheme();
@@ -43,6 +37,12 @@ export default function TasksScreen() {
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [habitToDelete, setHabitToDelete] = useState<string | null>(null);
+  
+  // Todo modal state
+  const [showTodoModal, setShowTodoModal] = useState(false);
+  const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
+  const [showDeleteTodoConfirm, setShowDeleteTodoConfirm] = useState(false);
+  const [todoToDelete, setTodoToDelete] = useState<string | null>(null);
 
   // Fetch user data
   const fetchUserData = useCallback(async () => {
@@ -77,21 +77,42 @@ export default function TasksScreen() {
     }
   }, []);
 
+  // Fetch todos
+  const fetchTodos = useCallback(async () => {
+    try {
+      const response = await TodoService.getTodos({
+        status: 'pending,in_progress,completed', // Get active and completed todos (to allow uncompleting)
+        limit: 100,
+      });
+      
+      // Filter out deleted todos on the frontend (check status and metadata)
+      setTodos(response.tasks.filter((todo) => {
+        // Exclude if status is cancelled AND has isDeleted flag in metadata
+        if (todo.status === 'cancelled' && todo.metadata?.isDeleted) {
+          return false;
+        }
+        return true;
+      }));
+    } catch (error) {
+      console.error('Error fetching todos:', error);
+    }
+  }, []);
+
   // Initial load
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchUserData(), fetchHabits()]);
+      await Promise.all([fetchUserData(), fetchHabits(), fetchTodos()]);
       setLoading(false);
     };
     loadData();
-  }, [fetchUserData, fetchHabits]);
+  }, [fetchUserData, fetchHabits, fetchTodos]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([fetchUserData(), fetchHabits()]);
+    await Promise.all([fetchUserData(), fetchHabits(), fetchTodos()]);
     setRefreshing(false);
-  }, [fetchUserData, fetchHabits]);
+  }, [fetchUserData, fetchHabits, fetchTodos]);
 
   const handleHabitToggle = async (habitId: string) => {
     const habit = habits.find((h) => h.id === habitId);
@@ -150,17 +171,48 @@ export default function TasksScreen() {
     }
   };
 
-  const handleTodoToggle = (todoId: string) => {
-    setTodos((prev) =>
-      prev.map((todo) =>
-        todo.id === todoId
-          ? {
-              ...todo,
-              status: todo.status === 'completed' ? 'pending' : 'completed',
-            }
-          : todo
-      )
-    );
+  const handleTodoToggle = async (todoId: string) => {
+    const todo = todos.find((t) => t.id === todoId);
+    if (!todo) return;
+
+    try {
+      const isCompleted = TodoService.isTodoCompleted(todo);
+
+      if (isCompleted) {
+        // Uncomplete the todo
+        const result = await TodoService.uncompleteTodo(todoId);
+        // Update local state
+        setTodos((prev) =>
+          prev.map((t) =>
+            t.id === todoId
+              ? {
+                  ...t,
+                  status: result.task.status,
+                }
+              : t
+          )
+        );
+        await fetchUserData();
+      } else {
+        // Complete the todo
+        const result = await TodoService.completeTodo(todoId);
+        // Update local state
+        setTodos((prev) =>
+          prev.map((t) =>
+            t.id === todoId
+              ? {
+                  ...t,
+                  status: 'completed',
+                }
+              : t
+          )
+        );
+        await fetchUserData();
+      }
+    } catch (error) {
+      console.error('Error toggling todo:', error);
+      // Error toast is already shown by TodoService
+    }
   };
 
   const handleAddPress = () => {
@@ -168,8 +220,8 @@ export default function TasksScreen() {
       setEditingHabit(null);
       setShowHabitModal(true);
     } else {
-      console.log('Add new todo');
-      // TODO: Implement todo creation
+      setEditingTodo(null);
+      setShowTodoModal(true);
     }
   };
 
@@ -225,6 +277,75 @@ export default function TasksScreen() {
     setHabitToDelete(null);
   };
 
+  // Todo handlers
+  const handleEditTodo = (todo: Todo) => {
+    setEditingTodo(todo);
+    setShowTodoModal(true);
+  };
+
+  const handleDeleteTodo = (todoId: string) => {
+    console.log('handleDeleteTodo called with todoId:', todoId);
+    setTodoToDelete(todoId);
+    setShowDeleteTodoConfirm(true);
+    console.log('Delete confirmation dialog should now be visible');
+  };
+
+  const confirmDeleteTodo = async () => {
+    if (!todoToDelete) return;
+
+    console.log('Delete confirmed by user, proceeding with deletion...', todoToDelete);
+    
+    try {
+      // Close modals first for immediate feedback
+      setShowDeleteTodoConfirm(false);
+      setShowTodoModal(false);
+      setEditingTodo(null);
+      
+      // Delete the todo
+      console.log('Calling TodoService.deleteTodo...');
+      await TodoService.deleteTodo(todoToDelete, false);
+      console.log('Todo deleted successfully, refreshing todos list...');
+      
+      // Refresh todos list
+      await fetchTodos();
+      console.log('Todos list refreshed');
+      
+      setTodoToDelete(null);
+    } catch (error: any) {
+      console.error('Error deleting todo:', error);
+      // Error toast is already shown by TodoService
+      // Reopen modal if delete failed so user can try again
+      const todoToReopen = todos.find((t) => t.id === todoToDelete);
+      if (todoToReopen) {
+        setEditingTodo(todoToReopen);
+        setShowTodoModal(true);
+      }
+      setTodoToDelete(null);
+    }
+  };
+
+  const cancelDeleteTodo = () => {
+    console.log('Delete cancelled by user');
+    setShowDeleteTodoConfirm(false);
+    setTodoToDelete(null);
+  };
+
+  const handleSubmitTodo = async (data: CreateTodoData | UpdateTodoData) => {
+    try {
+      if (editingTodo) {
+        await TodoService.updateTodo(editingTodo.id, data);
+      } else {
+        await TodoService.createTodo(data as CreateTodoData);
+      }
+      await fetchTodos();
+      setShowTodoModal(false);
+      setEditingTodo(null);
+    } catch (error) {
+      console.error('Error submitting todo:', error);
+      // Error toast is already shown by TodoService
+    }
+  };
+
   const handleSubmitHabit = async (data: CreateHabitData | UpdateHabitData) => {
     try {
       if (editingHabit) {
@@ -247,7 +368,15 @@ export default function TasksScreen() {
   };
 
   const activeHabits = habits.filter((h) => h.isActive);
-  const activeTodos = todos;
+  // Show all todos (pending, in_progress, and completed) so users can uncomplete completed ones
+  // Filter out cancelled todos that are marked as deleted
+  const activeTodos = todos.filter((t) => {
+    // Exclude cancelled todos that have isDeleted flag in metadata
+    if (t.status === 'cancelled' && t.metadata?.isDeleted) {
+      return false;
+    }
+    return true;
+  });
   const pendingTodos = activeTodos.filter((t) => t.status !== 'completed');
 
   const userName = UserService.getUserDisplayName(user || undefined);
@@ -311,8 +440,13 @@ export default function TasksScreen() {
           activeTodos.map((todo) => (
             <TodoCard
               key={todo.id}
-              {...todo}
-              onPress={() => console.log('Todo pressed:', todo.id)}
+              id={todo.id}
+              title={todo.title}
+              description={todo.description}
+              dueDate={todo.dueDate ? new Date(todo.dueDate) : undefined}
+              priority={todo.priority}
+              status={todo.status as 'pending' | 'in_progress' | 'completed' | 'cancelled'}
+              onPress={() => handleEditTodo(todo)}
               onToggle={handleTodoToggle}
             />
           ))
@@ -335,7 +469,7 @@ export default function TasksScreen() {
         onDelete={handleDeleteHabit}
       />
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Dialog for Habits */}
       <ConfirmDialog
         visible={showDeleteConfirm}
         title="Delete Habit"
@@ -345,6 +479,30 @@ export default function TasksScreen() {
         confirmButtonStyle="destructive"
         onConfirm={confirmDeleteHabit}
         onCancel={cancelDeleteHabit}
+      />
+
+      {/* Todo Form Modal */}
+      <TodoFormModal
+        visible={showTodoModal}
+        todo={editingTodo}
+        onClose={() => {
+          setShowTodoModal(false);
+          setEditingTodo(null);
+        }}
+        onSubmit={handleSubmitTodo}
+        onDelete={handleDeleteTodo}
+      />
+
+      {/* Delete Confirmation Dialog for Todos */}
+      <ConfirmDialog
+        visible={showDeleteTodoConfirm}
+        title="Delete Todo"
+        message="Are you sure you want to delete this todo? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmButtonStyle="destructive"
+        onConfirm={confirmDeleteTodo}
+        onCancel={cancelDeleteTodo}
       />
     </View>
   );

@@ -144,6 +144,8 @@ export default async function completeTask(req, res) {
       activityType: 'task_completed',
       description: `Task completed: ${task.title}`,
       xpGained: xpEarned,
+      isPublic: true,
+      importance: levelUpResult.leveledUp ? 'milestone' : 'medium',
       metadata: {
         taskId: task.id,
         wasEarly,

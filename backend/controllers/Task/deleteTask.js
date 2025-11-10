@@ -58,6 +58,8 @@ export default async function deleteTask(req, res) {
         activityType: 'task_deleted',
         description: `Task permanently deleted: ${task.title}`,
         xpGained: 0,
+        isPublic: false,
+        importance: 'medium',
         metadata: { taskId: task.id, title: task.title, permanent: true }
       }, { transaction });
 
@@ -68,13 +70,17 @@ export default async function deleteTask(req, res) {
       });
 
     } else {
-      // Soft delete - mark as deleted/archived
+      // Soft delete - mark as cancelled and add deleted metadata
+      // Note: 'deleted' is not a valid status enum value, so we use 'cancelled'
+      // and store deletion info in metadata
+      const currentMetadata = task.metadata || {};
       await task.update({
-        status: 'deleted',
+        status: 'cancelled',
         metadata: {
-          ...task.metadata,
-          deletedAt: new Date(),
-          originalStatus: task.status
+          ...currentMetadata,
+          deletedAt: new Date().toISOString(),
+          originalStatus: task.status,
+          isDeleted: true
         }
       }, { transaction });
 
@@ -84,17 +90,23 @@ export default async function deleteTask(req, res) {
         activityType: 'task_deleted',
         description: `Task archived: ${task.title}`,
         xpGained: 0,
+        isPublic: false,
+        importance: 'medium',
         metadata: { taskId: task.id, title: task.title, permanent: false }
       }, { transaction });
 
       await transaction.commit();
 
+      // Reload task to get updated metadata (outside transaction since it's committed)
+      const updatedTask = await db.Task.findByPk(task.id);
+
       return res.status(200).json({
         message: "Task deleted (archived). You can restore it by updating its status.",
         task: {
-          id: task.id,
-          title: task.title,
-          status: 'deleted'
+          id: updatedTask.id,
+          title: updatedTask.title,
+          status: updatedTask.status, // 'cancelled' with isDeleted flag in metadata
+          metadata: updatedTask.metadata
         }
       });
     }
