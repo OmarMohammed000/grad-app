@@ -11,7 +11,10 @@ interface UserProgressBarProps {
 
 export function UserProgressBar({ level, currentXP, maxXP, rank }: UserProgressBarProps) {
   const theme = useTheme();
-  const progress = (currentXP / maxXP) * 100;
+  // Ensure valid values and calculate progress percentage
+  const safeCurrentXP = Math.max(0, Number(currentXP) || 0);
+  const safeMaxXP = Math.max(1, Number(maxXP) || 1000); // Avoid division by zero
+  const progress = Math.min(100, Math.max(0, (safeCurrentXP / safeMaxXP) * 100)); // Clamp between 0-100%
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.card }, theme.shadows.md]}>
@@ -20,7 +23,7 @@ export function UserProgressBar({ level, currentXP, maxXP, rank }: UserProgressB
           Level {level} {rank}
         </Text>
         <Text style={[styles.xpText, { color: theme.colors.textSecondary }]}>
-          {currentXP.toLocaleString()} / {maxXP.toLocaleString()} XP
+          {safeCurrentXP.toLocaleString()} / {safeMaxXP.toLocaleString()} XP
         </Text>
       </View>
       

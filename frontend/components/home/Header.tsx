@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -10,17 +10,30 @@ interface HeaderProps {
 
 export function Header({ userName, userAvatar }: HeaderProps) {
   const theme = useTheme();
+  const [avatarError, setAvatarError] = useState(false);
+  
+  // Default avatar with first letter of username
+  const defaultAvatar = (
+    <View style={[styles.avatar, { backgroundColor: theme.colors.secondary || 'rgba(255, 255, 255, 0.3)' }]}>
+      <Text style={styles.avatarText}>{userName.charAt(0).toUpperCase()}</Text>
+    </View>
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.primary }]}>
       <View style={styles.content}>
         <View style={styles.userInfo}>
-          {userAvatar ? (
-            <Image source={{ uri: userAvatar }} style={styles.avatar} />
+          {userAvatar && !avatarError ? (
+            <Image 
+              source={{ uri: userAvatar }} 
+              style={styles.avatar}
+              onError={() => {
+                // If image fails to load, show default avatar
+                setAvatarError(true);
+              }}
+            />
           ) : (
-            <View style={[styles.avatar, { backgroundColor: theme.colors.secondary }]}>
-              <Text style={styles.avatarText}>{userName.charAt(0).toUpperCase()}</Text>
-            </View>
+            defaultAvatar
           )}
           <View>
             <Text style={styles.welcomeText}>Welcome back</Text>

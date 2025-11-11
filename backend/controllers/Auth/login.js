@@ -93,8 +93,10 @@ export default async function login(req, res) {
     res.cookie('refreshToken', refreshToken, cookieOptions);
 
     // Return user data with access token
+    // Also return refresh token in body for React Native compatibility
     return res.status(200).json({
       accessToken,
+      refreshToken, // Include in body for mobile apps
       user: {
         id: user.id,
         email: user.email,

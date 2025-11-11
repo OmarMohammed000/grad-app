@@ -113,6 +113,34 @@ export const completeHabit = async (req, res) => {
       completedAllTargetDaysThisWeek
     });
 
+    // Validate XP value before proceeding
+    if (isNaN(xpEarned) || !isFinite(xpEarned) || xpEarned < 0) {
+      await transaction.rollback();
+      console.error('Invalid XP calculated for habit:', {
+        habitId: id,
+        xpEarned,
+        habit: {
+          xpReward: habit.xpReward,
+          difficulty: habit.difficulty,
+          currentStreak: habit.currentStreak,
+          newStreak
+        }
+      });
+      return res.status(500).json({
+        message: 'Invalid XP calculation',
+        error: process.env.NODE_ENV === 'development' ? `XP value: ${xpEarned}` : undefined
+      });
+    }
+
+    console.log('Habit completion XP calculation:', {
+      habitId: id,
+      xpEarned,
+      baseXP: habit.xpReward,
+      difficulty: habit.difficulty,
+      currentStreak: habit.currentStreak,
+      newStreak
+    });
+
     // Extract time from completedAt for completionTime field
     const completionTime = completionDateObj.toTimeString().split(' ')[0].substring(0, 5); // HH:MM format
 

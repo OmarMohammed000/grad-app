@@ -17,6 +17,7 @@ interface User {
 
 interface AuthResponse {
   accessToken: string;
+  refreshToken?: string; // Optional for backward compatibility
   user: User;
 }
 
@@ -80,10 +81,13 @@ export class AuthService {
         password,
       });
 
-      const { accessToken, user } = response.data;
+      const { accessToken, refreshToken, user } = response.data;
 
       // Store tokens and user data
       await TokenManager.setAccessToken(accessToken);
+      if (refreshToken) {
+        await TokenManager.setRefreshToken(refreshToken);
+      }
       await AsyncStorage.setItem('user', JSON.stringify(user));
 
       Toast.show({
@@ -112,10 +116,13 @@ export class AuthService {
         idToken,
       });
 
-      const { accessToken, user } = response.data;
+      const { accessToken, refreshToken, user } = response.data;
 
       // Store tokens and user data
       await TokenManager.setAccessToken(accessToken);
+      if (refreshToken) {
+        await TokenManager.setRefreshToken(refreshToken);
+      }
       await AsyncStorage.setItem('user', JSON.stringify(user));
 
       Toast.show({
@@ -173,13 +180,26 @@ export class AuthService {
   // Refresh Token
   static async refreshToken(): Promise<AuthResponse> {
     try {
-      const response = await api.post('/auth/refresh');
-      const { accessToken, user } = response.data;
+      // Get refresh token from storage
+      const refreshToken = await TokenManager.getRefreshToken();
+      
+      if (!refreshToken) {
+        throw new Error('No refresh token available');
+      }
+
+      const response = await api.post('/auth/refresh', {
+        refreshToken: refreshToken
+      });
+      
+      const { accessToken, refreshToken: newRefreshToken, user } = response.data;
 
       await TokenManager.setAccessToken(accessToken);
+      if (newRefreshToken) {
+        await TokenManager.setRefreshToken(newRefreshToken);
+      }
       await AsyncStorage.setItem('user', JSON.stringify(user));
 
-      return { accessToken, user };
+      return { accessToken, refreshToken: newRefreshToken, user };
     } catch (error) {
       await TokenManager.clearAll();
       throw error;

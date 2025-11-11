@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
-import { Input, Button } from '@/components/form';
+import { Input, Button, DatePicker } from '@/components/form';
 import { Todo, CreateTodoData, UpdateTodoData } from '@/services/todos';
 
 interface TodoFormModalProps {
@@ -49,7 +49,7 @@ export function TodoFormModal({
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'critical'>('medium');
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'extreme'>('medium');
-  const [dueDate, setDueDate] = useState('');
+  const [dueDate, setDueDate] = useState<string | undefined>(undefined);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
 
@@ -59,7 +59,7 @@ export function TodoFormModal({
       setDescription(todo.description || '');
       setPriority(todo.priority || 'medium');
       setDifficulty(todo.difficulty || 'medium');
-      setDueDate(todo.dueDate ? new Date(todo.dueDate).toISOString().split('T')[0] : '');
+      setDueDate(todo.dueDate ? new Date(todo.dueDate).toISOString() : undefined);
       setTags(todo.tags || []);
     } else {
       // Reset form for new todo
@@ -67,7 +67,7 @@ export function TodoFormModal({
       setDescription('');
       setPriority('medium');
       setDifficulty('medium');
-      setDueDate('');
+      setDueDate(undefined);
       setTags([]);
       setTagInput('');
     }
@@ -80,42 +80,13 @@ export function TodoFormModal({
 
     setLoading(true);
     try {
-      // Validate and format dueDate
-      // Send as YYYY-MM-DD string or undefined (not empty string)
-      let formattedDueDate: string | undefined = undefined;
-      if (dueDate && dueDate.trim()) {
-        const trimmedDate = dueDate.trim();
-        // Validate the date format (YYYY-MM-DD)
-        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-        if (dateRegex.test(trimmedDate)) {
-          // Verify the date is valid by parsing it
-          const [year, month, day] = trimmedDate.split('-').map(Number);
-          const dateObj = new Date(year, month - 1, day);
-          
-          // Check if the date is valid (handles invalid dates like Feb 30)
-          if (dateObj.getFullYear() === year && 
-              dateObj.getMonth() === month - 1 && 
-              dateObj.getDate() === day) {
-            // Send as ISO string for backend (Sequelize will handle conversion)
-            // Using toISOString() ensures proper timezone handling
-            formattedDueDate = dateObj.toISOString();
-          } else {
-            console.warn('Invalid due date (out of range):', trimmedDate);
-            // Don't send invalid dates - leave as undefined
-          }
-        } else {
-          console.warn('Invalid due date format (expected YYYY-MM-DD):', trimmedDate);
-          // Don't send invalid dates - leave as undefined
-        }
-      }
-      // If dueDate is empty or invalid, formattedDueDate remains undefined
-
+      // dueDate is already in ISO format from DatePicker, or undefined
       const data: CreateTodoData | UpdateTodoData = {
         title: title.trim(),
         description: description.trim() || undefined,
         priority,
         difficulty,
-        dueDate: formattedDueDate,
+        dueDate: dueDate, // Already in ISO format from DatePicker
         tags: tags.length > 0 ? tags : undefined,
       };
 
@@ -296,11 +267,12 @@ export function TodoFormModal({
               </View>
 
               {/* Due Date */}
-              <Input
+              <DatePicker
                 label="Due Date"
                 value={dueDate}
-                onChangeText={setDueDate}
-                placeholder="YYYY-MM-DD (optional)"
+                onChange={setDueDate}
+                placeholder="Select due date (optional)"
+                minimumDate={new Date()} // Prevent selecting past dates
               />
 
               {/* Tags */}

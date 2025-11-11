@@ -30,8 +30,20 @@ const XP_BASE_VALUES = {
  * @returns {number} Final XP amount
  */
 export function calculateTaskXP(task, completionData = {}) {
-  // Start with custom XP or base value
-  let finalXP = task.xpReward || XP_BASE_VALUES.task[task.difficulty] || 25;
+  // Validate task object
+  if (!task || typeof task !== 'object') {
+    console.error('Invalid task object passed to calculateTaskXP:', task);
+    return 25; // Default fallback
+  }
+
+  // Start with custom XP or base value - ensure it's a number
+  let finalXP = Number(task.xpReward) || XP_BASE_VALUES.task[task.difficulty] || 25;
+  
+  // Validate finalXP is a valid number
+  if (isNaN(finalXP) || !isFinite(finalXP) || finalXP < 0) {
+    console.error('Invalid XP value calculated, using default:', finalXP);
+    finalXP = 25;
+  }
 
   // Priority modifier (reasonable boost)
   const priorityMultipliers = {
@@ -44,16 +56,27 @@ export function calculateTaskXP(task, completionData = {}) {
 
   // Early completion bonus (max 20%)
   if (task.dueDate && completionData.completedAt) {
-    const daysEarly = Math.floor((new Date(task.dueDate) - new Date(completionData.completedAt)) / (1000 * 60 * 60 * 24));
-    
-    if (daysEarly > 0) {
-      // Small bonus for early completion
-      const earlyBonus = Math.min(daysEarly * 0.05, 0.2); // max 20%
-      finalXP *= (1 + earlyBonus);
-    } else if (daysEarly < 0) {
-      // Small penalty for late completion (min 70% of XP)
-      const latePenalty = Math.max(-0.3, daysEarly * 0.05);
-      finalXP *= (1 + latePenalty);
+    try {
+      const dueDate = new Date(task.dueDate);
+      const completedDate = new Date(completionData.completedAt);
+      
+      if (isNaN(dueDate.getTime()) || isNaN(completedDate.getTime())) {
+        console.warn('Invalid date in XP calculation, skipping time bonus');
+      } else {
+        const daysEarly = Math.floor((dueDate - completedDate) / (1000 * 60 * 60 * 24));
+        
+        if (daysEarly > 0) {
+          // Small bonus for early completion
+          const earlyBonus = Math.min(daysEarly * 0.05, 0.2); // max 20%
+          finalXP *= (1 + earlyBonus);
+        } else if (daysEarly < 0) {
+          // Small penalty for late completion (min 70% of XP)
+          const latePenalty = Math.max(-0.3, daysEarly * 0.05);
+          finalXP *= (1 + latePenalty);
+        }
+      }
+    } catch (error) {
+      console.error('Error calculating time bonus:', error);
     }
   }
 
@@ -62,7 +85,22 @@ export function calculateTaskXP(task, completionData = {}) {
     finalXP *= 1.1;
   }
 
-  return Math.round(finalXP);
+  // Final validation and rounding
+  finalXP = Math.round(finalXP);
+  
+  // Ensure final value is valid and within reasonable bounds
+  if (isNaN(finalXP) || !isFinite(finalXP) || finalXP < 0) {
+    console.error('Invalid final XP value, using default:', finalXP);
+    finalXP = 25;
+  }
+  
+  // Cap at reasonable maximum (1 million XP per task)
+  if (finalXP > 1000000) {
+    console.error('XP value too large, capping at 1M:', finalXP);
+    finalXP = 1000000;
+  }
+
+  return finalXP;
 }
 
 /**
@@ -72,15 +110,30 @@ export function calculateTaskXP(task, completionData = {}) {
  * @returns {number} Final XP amount
  */
 export function calculateHabitXP(habit, completionData = {}) {
-  // Start with custom XP or base value
-  let finalXP = habit.xpReward || XP_BASE_VALUES.habit[habit.difficulty] || 15;
+  // Validate habit object
+  if (!habit || typeof habit !== 'object') {
+    console.error('Invalid habit object passed to calculateHabitXP:', habit);
+    return 15; // Default fallback
+  }
+
+  // Start with custom XP or base value - ensure it's a number
+  let finalXP = Number(habit.xpReward) || XP_BASE_VALUES.habit[habit.difficulty] || 15;
+  
+  // Validate finalXP is a valid number
+  if (isNaN(finalXP) || !isFinite(finalXP) || finalXP < 0) {
+    console.error('Invalid XP value calculated, using default:', finalXP);
+    finalXP = 15;
+  }
 
   // Streak bonus - CAPPED to prevent spiral
   // +2% per 7-day streak, max +30% at 15 weeks (105 days)
-  if (habit.currentStreak && habit.currentStreak > 0) {
-    const weekStreaks = Math.floor(habit.currentStreak / 7);
-    const streakBonus = Math.min(weekStreaks * 0.02, 0.3); // max 30%
-    finalXP *= (1 + streakBonus);
+  if (habit.currentStreak && Number(habit.currentStreak) > 0) {
+    const streak = Number(habit.currentStreak);
+    if (!isNaN(streak) && isFinite(streak)) {
+      const weekStreaks = Math.floor(streak / 7);
+      const streakBonus = Math.min(weekStreaks * 0.02, 0.3); // max 30%
+      finalXP *= (1 + streakBonus);
+    }
   }
 
   // First completion bonus (one-time)
@@ -93,7 +146,22 @@ export function calculateHabitXP(habit, completionData = {}) {
     finalXP *= 1.15; // 15% bonus
   }
 
-  return Math.round(finalXP);
+  // Final validation and rounding
+  finalXP = Math.round(finalXP);
+  
+  // Ensure final value is valid and within reasonable bounds
+  if (isNaN(finalXP) || !isFinite(finalXP) || finalXP < 0) {
+    console.error('Invalid final XP value, using default:', finalXP);
+    finalXP = 15;
+  }
+  
+  // Cap at reasonable maximum (1 million XP per habit)
+  if (finalXP > 1000000) {
+    console.error('XP value too large, capping at 1M:', finalXP);
+    finalXP = 1000000;
+  }
+
+  return finalXP;
 }
 
 /**
@@ -108,6 +176,24 @@ export async function awardXP(userId, xpAmount, source, metadata = {}, transacti
   const useTransaction = transaction || await db.sequelize.transaction();
 
   try {
+    // Validate and sanitize xpAmount
+    xpAmount = Number(xpAmount);
+    
+    if (isNaN(xpAmount) || !isFinite(xpAmount)) {
+      console.error('Invalid xpAmount passed to awardXP:', xpAmount, 'source:', source, 'metadata:', metadata);
+      throw new Error(`Invalid XP amount: ${xpAmount}. Expected a valid number.`);
+    }
+    
+    if (xpAmount < 0) {
+      console.error('Negative xpAmount passed to awardXP:', xpAmount);
+      throw new Error(`XP amount cannot be negative: ${xpAmount}`);
+    }
+    
+    if (xpAmount > 1000000) {
+      console.error('XP amount too large:', xpAmount);
+      throw new Error(`XP amount exceeds maximum allowed: ${xpAmount}`);
+    }
+
     // Get user's character
     const character = await db.Character.findOne({
       where: { userId },
@@ -126,12 +212,68 @@ export async function awardXP(userId, xpAmount, source, metadata = {}, transacti
       throw new Error('Character not found');
     }
 
+    // Validate character XP values are numbers
+    // Handle both number and string types (Sequelize may return BIGINT as string)
+    let currentXp = character.currentXp;
+    let totalXp = character.totalXp;
+    
+    // Convert to number, handling string representations
+    if (typeof currentXp === 'string') {
+      currentXp = parseInt(currentXp, 10);
+    }
+    if (typeof totalXp === 'string') {
+      totalXp = parseInt(totalXp, 10);
+    }
+    
+    currentXp = Number(currentXp) || 0;
+    totalXp = Number(totalXp) || 0;
+    
+    // Log original values for debugging
+    if (typeof character.currentXp === 'string' || typeof character.totalXp === 'string') {
+      console.log('XP values converted from string:', {
+        originalCurrentXp: character.currentXp,
+        originalTotalXp: character.totalXp,
+        convertedCurrentXp: currentXp,
+        convertedTotalXp: totalXp
+      });
+    }
+    
+    if (isNaN(currentXp) || !isFinite(currentXp) || currentXp < 0) {
+      console.error('Invalid currentXp in character:', character.currentXp, '->', currentXp);
+      currentXp = 0;
+      character.currentXp = 0;
+    }
+    
+    if (isNaN(totalXp) || !isFinite(totalXp) || totalXp < 0) {
+      console.error('Invalid totalXp in character:', character.totalXp, '->', totalXp);
+      totalXp = 0;
+      character.totalXp = 0;
+    }
+    
+    // Additional safety check for extremely large values (likely corrupted)
+    if (totalXp > 1000000000000) { // 1 trillion
+      console.error('Suspiciously large totalXp detected, resetting:', totalXp);
+      totalXp = 0;
+      character.totalXp = 0;
+    }
+
     const oldLevel = character.level;
     const oldRank = character.rank;
 
-    // Add XP
-    character.currentXp += xpAmount;
-    character.totalXp += xpAmount;
+    // Add XP - Sequelize handles BIGINT conversion automatically
+    // Ensure values are integers to avoid precision issues
+    character.currentXp = Math.floor(currentXp + xpAmount);
+    // For totalXp (BIGINT), ensure we're adding integers
+    // Sequelize will handle the conversion to BigInt for PostgreSQL
+    const newTotalXp = Math.floor(totalXp) + Math.floor(xpAmount);
+    
+    // Validate the result is within safe integer range for JavaScript
+    if (newTotalXp > Number.MAX_SAFE_INTEGER) {
+      console.error('Total XP exceeds safe integer range:', newTotalXp);
+      throw new Error('Total XP value too large');
+    }
+    
+    character.totalXp = newTotalXp;
 
     // Emit progress update via WebSocket
     emitUserProgress(userId, {

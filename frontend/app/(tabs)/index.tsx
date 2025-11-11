@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { 
@@ -10,45 +10,22 @@ import {
   Quest,
   Challenge
 } from '@/components/home';
+import { TodoFormModal } from '@/components/tasks/TodoFormModal';
+import UserService, { User } from '@/services/user';
+import TodoService, { CreateTodoData, Todo } from '@/services/todos';
 
 export default function HomeScreen() {
   const theme = useTheme();
   const [refreshing, setRefreshing] = useState(false);
-
-  // Mock user data - replace with actual data from backend later
-  const [userData] = useState({
-    name: 'Hunter Alex',
-    avatar: undefined,
-    level: 12,
-    currentXP: 2840,
-    maxXP: 3000,
-    rank: 'Hunter',
+  const [user, setUser] = useState<User | null>(null);
+  const [userProgress, setUserProgress] = useState({
+    level: 1,
+    currentXP: 0,
+    maxXP: 1000,
+    rank: 'E-Rank',
   });
-
-  // Mock quests data - replace with actual data from backend later
-  const [quests, setQuests] = useState<Quest[]>([
-    {
-      id: '1',
-      title: 'Morning Workout',
-      xp: 50,
-      difficulty: 'Easy',
-      completed: true,
-    },
-    {
-      id: '2',
-      title: 'Read 30 minutes',
-      xp: 30,
-      difficulty: 'Medium',
-      completed: false,
-    },
-    {
-      id: '3',
-      title: 'Complete project milestone',
-      xp: 100,
-      difficulty: 'Hard',
-      completed: false,
-    },
-  ]);
+  const [showTodoModal, setShowTodoModal] = useState(false);
+  const [quests, setQuests] = useState<Quest[]>([]);
 
   // Mock challenges data - replace with actual data from backend later
   // Set to empty array [] to see the empty state
@@ -77,24 +54,103 @@ export default function HomeScreen() {
     },
   ]);
 
+  // Transform Todo to Quest format
+  const transformTodoToQuest = (todo: Todo): Quest => {
+    // Map difficulty from todo to quest format
+    const difficultyMap: Record<string, 'Easy' | 'Medium' | 'Hard'> = {
+      'easy': 'Easy',
+      'medium': 'Medium',
+      'hard': 'Hard',
+      'extreme': 'Hard', // Map extreme to Hard for quest display
+    };
+
+    return {
+      id: todo.id,
+      title: todo.title,
+      xp: todo.xpReward || 25, // Use xpReward or default to 25
+      difficulty: difficultyMap[todo.difficulty] || 'Medium',
+      completed: todo.status === 'completed',
+    };
+  };
+
+  // Fetch todos with today's deadline
+  const fetchTodaysQuests = useCallback(async () => {
+    try {
+      // Use backend's 'today' filter which handles date range properly
+      const response = await TodoService.getTodos({
+        dueDate: 'today', // Backend handles 'today' as a special filter
+        status: 'pending,in_progress,completed', // Include all statuses to show completed ones too
+        limit: 100,
+      });
+
+      // Transform todos to quests
+      const transformedQuests = response.tasks.map(transformTodoToQuest);
+      setQuests(transformedQuests);
+    } catch (error) {
+      console.error('Error fetching today\'s quests:', error);
+      setQuests([]);
+    }
+  }, []);
+
+  // Fetch user data
+  const fetchUserData = useCallback(async () => {
+    try {
+      const response = await UserService.getMe();
+      setUser(response.user);
+      const progress = UserService.calculateXPProgress(response.user.character);
+      setUserProgress(progress);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    }
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    fetchUserData();
+    fetchTodaysQuests();
+  }, [fetchUserData, fetchTodaysQuests]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
-    // TODO: Fetch fresh data from backend
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await Promise.all([fetchUserData(), fetchTodaysQuests()]);
     setRefreshing(false);
   };
 
-  const handleToggleQuest = (id: string) => {
-    setQuests(prevQuests =>
-      prevQuests.map(quest =>
-        quest.id === id ? { ...quest, completed: !quest.completed } : quest
-      )
-    );
+  const handleToggleQuest = async (id: string) => {
+    const quest = quests.find((q) => q.id === id);
+    if (!quest) return;
+
+    try {
+      if (quest.completed) {
+        // Uncomplete the todo
+        await TodoService.uncompleteTodo(id);
+      } else {
+        // Complete the todo
+        await TodoService.completeTodo(id);
+      }
+      
+      // Refresh quests and user data
+      await Promise.all([fetchTodaysQuests(), fetchUserData()]);
+    } catch (error) {
+      console.error('Error toggling quest:', error);
+      // Error toast is already shown by TodoService
+    }
   };
 
   const handleAddTask = () => {
-    console.log('Add Task pressed');
-    // TODO: Navigate to add task screen
+    setShowTodoModal(true);
+  };
+
+  const handleSubmitTodo = async (data: CreateTodoData) => {
+    try {
+      await TodoService.createTodo(data);
+      setShowTodoModal(false);
+      // Refresh quests and user data
+      await Promise.all([fetchTodaysQuests(), fetchUserData()]);
+    } catch (error) {
+      console.error('Error creating todo:', error);
+      // Error toast is already shown by TodoService
+    }
   };
 
   const handleJoinChallenge = () => {
@@ -120,13 +176,16 @@ export default function HomeScreen() {
       }
       showsVerticalScrollIndicator={false}
     >
-      <Header userName={userData.name} userAvatar={userData.avatar} />
+      <Header 
+        userName={UserService.getUserDisplayName(user || undefined)} 
+        userAvatar={user?.profile?.avatarUrl} 
+      />
       
       <UserProgressBar
-        level={userData.level}
-        currentXP={userData.currentXP}
-        maxXP={userData.maxXP}
-        rank={userData.rank}
+        level={userProgress.level}
+        currentXP={userProgress.currentXP}
+        maxXP={userProgress.maxXP}
+        rank={userProgress.rank}
       />
 
       <QuickActions
@@ -139,6 +198,14 @@ export default function HomeScreen() {
       <ActiveChallenges
         challenges={challenges}
         onPressChallenge={handlePressChallenge}
+      />
+
+      {/* Todo Form Modal */}
+      <TodoFormModal
+        visible={showTodoModal}
+        todo={null}
+        onClose={() => setShowTodoModal(false)}
+        onSubmit={handleSubmitTodo}
       />
     </ScrollView>
   );

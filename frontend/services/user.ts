@@ -21,6 +21,7 @@ export interface Character {
   level: number;
   totalXp: number;
   currentXp: number;
+  xpToNextLevel: number;
   streakDays: number;
   longestStreak: number;
   rank?: Rank;
@@ -92,6 +93,7 @@ export class UserService {
 
   /**
    * Calculate current XP and max XP for progress bar
+   * Uses currentXp and xpToNextLevel directly from character
    */
   static calculateXPProgress(character: Character | undefined): {
     currentXP: number;
@@ -109,20 +111,16 @@ export class UserService {
     }
 
     const level = character.level || 1;
-    const totalXp = character.totalXp || 0;
-    
-    // Calculate XP for current level (assuming 1000 XP per level)
-    // You may need to adjust this based on your XP calculation logic
-    const xpPerLevel = 1000;
-    const currentLevelXp = totalXp % xpPerLevel;
-    const maxXP = xpPerLevel;
+    // Use currentXp and xpToNextLevel directly from character (matches backend)
+    const currentXP = Number(character.currentXp) || 0;
+    const maxXP = Number(character.xpToNextLevel) || 1000;
     
     // Get rank name
     const rankName = character.rank?.name || 'E-Rank';
 
     return {
-      currentXP: currentLevelXp,
-      maxXP: maxXP,
+      currentXP: Math.max(0, currentXP), // Ensure non-negative
+      maxXP: Math.max(1, maxXP), // Ensure at least 1 to avoid division by zero
       level: level,
       rank: rankName,
     };

@@ -3,10 +3,12 @@ import db from "../../models/index.js";
 import crypto from "crypto";
 
 /**
- * Refresh access token using refresh token from cookie
+ * Refresh access token using refresh token from cookie or request body
+ * Supports both cookie-based (web) and body-based (mobile) refresh tokens
  */
 export default async function refreshToken(req, res) {
-  const refreshToken = req.cookies.refreshToken;
+  // Try to get refresh token from cookie first (web), then from body (mobile)
+  let refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
 
   if (!refreshToken) {
     return res.status(401).json({ message: "No refresh token provided" });
@@ -91,8 +93,10 @@ export default async function refreshToken(req, res) {
     });
 
     // Return new access token with user data
+    // Also return refresh token in body for React Native compatibility
     return res.status(200).json({
       accessToken: newAccessToken,
+      refreshToken: newRefreshToken, // Include in body for mobile apps
       user: {
         id: user.id,
         email: user.email,
@@ -111,7 +115,7 @@ export default async function refreshToken(req, res) {
   } catch (error) {
     console.error("Error refreshing token:", error);
     res.clearCookie('refreshToken', {
-      path: '/api/auth/refresh'
+      path: '/auth/refresh'
     });
     return res.status(500).json({ 
       message: "An error occurred while refreshing the token",

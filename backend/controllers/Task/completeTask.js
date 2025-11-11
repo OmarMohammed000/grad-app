@@ -59,35 +59,6 @@ export default async function completeTask(req, res) {
     const wasEarly = task.dueDate && completedAt < new Date(task.dueDate);
     const wasLate = task.dueDate && completedAt > new Date(task.dueDate);
 
-    let earlyCompletionBonus = 0;
-    let lateCompletionPenalty = 0;
-
-    if (wasEarly) {
-      const timeUntilDue = new Date(task.dueDate) - completedAt;
-      const totalTime = new Date(task.dueDate) - new Date(task.createdAt);
-      const earlyPercentage = (timeUntilDue / totalTime) * 100;
-      
-      if (earlyPercentage >= 50) {
-        earlyCompletionBonus = 0.3; // 30% bonus for completing >50% early
-      } else if (earlyPercentage >= 25) {
-        earlyCompletionBonus = 0.2; // 20% bonus for completing >25% early
-      } else {
-        earlyCompletionBonus = 0.1; // 10% bonus for any early completion
-      }
-    } else if (wasLate) {
-      const timeOverdue = completedAt - new Date(task.dueDate);
-      const totalTime = new Date(task.dueDate) - new Date(task.createdAt);
-      const latePercentage = (timeOverdue / totalTime) * 100;
-      
-      if (latePercentage >= 100) {
-        lateCompletionPenalty = 0.3; // 30% penalty for >2x time
-      } else if (latePercentage >= 50) {
-        lateCompletionPenalty = 0.2; // 20% penalty for >50% late
-      } else {
-        lateCompletionPenalty = 0.1; // 10% penalty for any late completion
-      }
-    }
-
     // Count completed subtasks for bonus
     const completedSubtaskCount = await db.Task.count({
       where: {
@@ -97,14 +68,39 @@ export default async function completeTask(req, res) {
       transaction
     });
 
-    // Calculate XP reward
-    const xpEarned = calculateTaskXP({
+    // Calculate XP reward - pass the task object and completion data
+    const xpEarned = calculateTaskXP(
+      task,
+      {
+        completedAt,
+        allSubtasksCompleted: completedSubtaskCount > 0 && task.subtasks?.length === completedSubtaskCount
+      }
+    );
+
+    // Validate XP value before proceeding
+    if (isNaN(xpEarned) || !isFinite(xpEarned) || xpEarned < 0) {
+      await transaction.rollback();
+      console.error('Invalid XP calculated for task:', {
+        taskId: task.id,
+        xpEarned,
+        task: {
+          xpReward: task.xpReward,
+          difficulty: task.difficulty,
+          priority: task.priority
+        }
+      });
+      return res.status(500).json({
+        message: "Invalid XP calculation",
+        error: process.env.NODE_ENV === 'development' ? `XP value: ${xpEarned}` : undefined
+      });
+    }
+
+    console.log('Task completion XP calculation:', {
+      taskId: task.id,
+      xpEarned,
       baseXP: task.xpReward,
-      priority: task.priority,
       difficulty: task.difficulty,
-      earlyCompletionBonus,
-      lateCompletionPenalty,
-      subtaskCompletionCount: completedSubtaskCount
+      priority: task.priority
     });
 
     // Create completion record
@@ -177,9 +173,7 @@ export default async function completeTask(req, res) {
         xpEarned,
         wasEarly,
         wasLate,
-        earlyCompletionBonus,
-        lateCompletionPenalty,
-        subtaskBonus: completedSubtaskCount > 0
+        subtaskBonus: completedSubtaskCount > 0 && task.subtasks?.length === completedSubtaskCount
       },
       character: levelUpResult.leveledUp ? {
         leveledUp: true,

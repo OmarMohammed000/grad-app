@@ -159,7 +159,14 @@ api.interceptors.request.use(
 
 // Response interceptor to handle token refresh and log responses
 api.interceptors.response.use(
-  (response) => {
+  async (response) => {
+    // Check if backend auto-refreshed the token (from middleware)
+    const newAccessToken = response.headers['x-new-access-token'];
+    if (newAccessToken) {
+      console.log('🔄 Auto-refreshed token received from backend');
+      await TokenManager.setAccessToken(newAccessToken);
+    }
+
     // Log successful response
     console.log('✅ API Response:', {
       status: response.status,
@@ -193,20 +200,43 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       
       try {
-        // Try to refresh token
-        const response = await axios.post(`${API_URL}/auth/refresh`, {}, {
-          withCredentials: true, // Include cookies
+        // Get refresh token from storage (React Native doesn't handle cookies automatically)
+        const refreshToken = await TokenManager.getRefreshToken();
+        
+        if (!refreshToken) {
+          console.error('❌ No refresh token available');
+          await TokenManager.clearAll();
+          return Promise.reject(new Error('No refresh token available'));
+        }
+
+        // Try to refresh token - send refresh token in body for React Native compatibility
+        console.log('🔄 Attempting to refresh access token...');
+        const response = await axios.post(`${API_URL}/auth/refresh`, {
+          refreshToken: refreshToken
+        }, {
+          withCredentials: true, // Include cookies for web compatibility
         });
         
         const { accessToken, user } = response.data;
+        
+        // Store new access token
         await TokenManager.setAccessToken(accessToken);
+        
+        // Update refresh token if a new one is provided (token rotation)
+        if (response.data.refreshToken) {
+          await TokenManager.setRefreshToken(response.data.refreshToken);
+        }
+        
         await AsyncStorage.setItem('user', JSON.stringify(user));
+        
+        console.log('✅ Token refreshed successfully');
         
         // Retry original request with new token
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return api(originalRequest);
-      } catch (refreshError) {
-        // Refresh failed, redirect to login
+      } catch (refreshError: any) {
+        console.error('❌ Token refresh failed:', refreshError.response?.data || refreshError.message);
+        // Refresh failed, clear tokens and redirect to login
         await TokenManager.clearAll();
         // You can dispatch a logout action here or use navigation
         console.log('Session expired, please login again');
