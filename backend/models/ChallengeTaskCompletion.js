@@ -88,15 +88,6 @@ export default (sequelize) => {
       allowNull: true,
       comment: 'Verifier notes'
     },
-    satisfactionRating: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      validate: {
-        min: 1,
-        max: 5
-      },
-      comment: 'User satisfaction rating (1-5)'
-    },
     durationMinutes: {
       type: DataTypes.INTEGER,
       allowNull: true,

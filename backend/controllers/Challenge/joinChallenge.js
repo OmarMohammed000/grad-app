@@ -91,7 +91,7 @@ export default async function joinChallenge(req, res) {
       activityType: 'challenge_joined',
       description: `Joined challenge: ${challenge.title}`,
       isPublic: true,
-      importance: 'info'
+      importance: 'medium'
     }, { transaction });
 
     await transaction.commit();

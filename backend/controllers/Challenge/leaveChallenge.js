@@ -66,7 +66,7 @@ export default async function leaveChallenge(req, res) {
       activityType: 'challenge_left',
       description: `Left challenge: ${challenge.title}`,
       isPublic: false,
-      importance: 'info'
+      importance: 'low'
     }, { transaction });
 
     await transaction.commit();

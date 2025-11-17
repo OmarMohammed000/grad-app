@@ -10,7 +10,6 @@ interface TasksHeaderProps {
   currentXP: number;
   maxXP: number;
   rank: string;
-  onSearchPress?: () => void;
   onAddPress?: () => void;
 }
 
@@ -20,7 +19,6 @@ export function TasksHeader({
   currentXP,
   maxXP,
   rank,
-  onSearchPress,
   onAddPress,
 }: TasksHeaderProps) {
   const theme = useTheme();
@@ -39,16 +37,6 @@ export function TasksHeader({
         </View>
 
         <View style={styles.actions}>
-          <TouchableOpacity
-            style={[
-              styles.iconButton,
-              { backgroundColor: theme.colors.backgroundSecondary },
-            ]}
-            onPress={onSearchPress}
-          >
-            <Ionicons name="search-outline" size={22} color={theme.colors.text} />
-          </TouchableOpacity>
-
           <TouchableOpacity
             style={[
               styles.iconButton,

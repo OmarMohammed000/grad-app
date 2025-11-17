@@ -95,15 +95,6 @@ export default (sequelize) => {
         min: 0
       },
       comment: 'Activity streak count on this date'
-    },
-    motivationLevel: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      validate: {
-        min: 1,
-        max: 5
-      },
-      comment: 'User motivation level (1-5)'
     }
   }, {
     tableName: 'challenge_progress',

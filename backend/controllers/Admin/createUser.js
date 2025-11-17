@@ -96,7 +96,7 @@ export default async function createUser(req, res) {
       description: `User created by admin (${req.user.userId})`,
       xpGained: 0,
       isPublic: false,
-      importance: 'info'
+      importance: 'low'
     }, { transaction });
 
     await transaction.commit();

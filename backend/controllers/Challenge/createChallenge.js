@@ -110,7 +110,7 @@ export default async function createChallenge(req, res) {
       activityType: 'challenge_created',
       description: `Created challenge: ${title}`,
       isPublic: true,
-      importance: 'info'
+      importance: 'medium'
     }, { transaction });
 
     await transaction.commit();

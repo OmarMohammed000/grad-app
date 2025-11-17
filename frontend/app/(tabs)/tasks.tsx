@@ -362,11 +362,6 @@ export default function TasksScreen() {
     }
   };
 
-  const handleSearchPress = () => {
-    console.log('Search pressed');
-    // TODO: Implement search
-  };
-
   const activeHabits = habits.filter((h) => h.isActive);
   // Show all todos (pending, in_progress, and completed) so users can uncomplete completed ones
   // Filter out cancelled todos that are marked as deleted
@@ -389,7 +384,6 @@ export default function TasksScreen() {
         currentXP={userProgress.currentXP}
         maxXP={userProgress.maxXP}
         rank={userProgress.rank}
-        onSearchPress={handleSearchPress}
         onAddPress={handleAddPress}
       />
 

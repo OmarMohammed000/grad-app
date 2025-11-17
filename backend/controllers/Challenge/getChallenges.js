@@ -28,9 +28,19 @@ export default async function getChallenges(req, res) {
 
     // Status filter
     if (status) {
-      where.status = status;
+      // Handle comma-separated status values (e.g., "upcoming,active")
+      if (typeof status === 'string' && status.includes(',')) {
+        const statusArray = status.split(',').map(s => s.trim()).filter(s => s);
+        console.log('📊 Parsing comma-separated status:', status, '→', statusArray);
+        where.status = { [Op.in]: statusArray };
+      } else {
+        // Single status value
+        console.log('📊 Using single status:', status);
+        where.status = status;
+      }
     } else {
       // Default: show upcoming and active challenges
+      console.log('📊 No status provided, using default: upcoming, active');
       where.status = { [Op.in]: ['upcoming', 'active'] };
     }
 

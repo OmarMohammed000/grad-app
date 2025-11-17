@@ -98,7 +98,7 @@ export default async function updateUser(req, res) {
       description: `User updated by admin (${req.user.userId})`,
       xpGained: 0,
       isPublic: false,
-      importance: 'info'
+      importance: 'low'
     });
 
     return res.status(200).json({

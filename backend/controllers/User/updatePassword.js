@@ -59,7 +59,7 @@ export default async function updatePassword(req, res) {
       description: 'Password was changed',
       xpGained: 0,
       isPublic: false,
-      importance: 'info'
+      importance: 'low'
     });
 
     return res.status(200).json({ 
