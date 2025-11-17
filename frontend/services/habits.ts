@@ -255,10 +255,11 @@ export class HabitService {
       const response = await api.delete(`/habits/${id}/complete`, {
         data: { completedDate },
       });
+      const xpRemoved = response.data.xpRemoved || 0;
       Toast.show({
         type: 'success',
         text1: 'Completion Removed',
-        text2: 'Habit completion has been removed',
+        text2: xpRemoved > 0 ? `${xpRemoved} XP removed` : 'Habit completion has been removed',
       });
       return response.data;
     } catch (error: any) {

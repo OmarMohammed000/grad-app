@@ -257,23 +257,27 @@ export class TodoService {
   }
 
   /**
-   * Uncomplete a todo (by updating status back to pending/in_progress)
+   * Uncomplete a todo (dedicated endpoint that removes XP and completion record)
    */
   static async uncompleteTodo(id: string): Promise<{
     message: string;
     task: Todo;
+    xpRemoved: number;
   }> {
     try {
-      // Update status to pending to uncomplete
-      const response = await TodoService.updateTodo(id, { status: 'pending' });
+      const response = await api.delete(`/tasks/${id}/complete`);
+      const xpRemoved = response.data.xpRemoved || 0;
+      
       Toast.show({
         type: 'success',
         text1: 'Completion Removed',
-        text2: 'Todo completion has been removed',
+        text2: xpRemoved > 0 ? `${xpRemoved} XP removed` : 'Todo completion has been removed',
       });
+      
       return {
         message: 'Todo uncompleted successfully',
-        task: response.task,
+        task: response.data.task,
+        xpRemoved,
       };
     } catch (error: any) {
       console.error('Error uncompleting todo:', error);

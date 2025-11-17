@@ -5,6 +5,7 @@ import getTasks from '../controllers/Task/getTasks.js';
 import getTask from '../controllers/Task/getTask.js';
 import updateTask from '../controllers/Task/updateTask.js';
 import completeTask from '../controllers/Task/completeTask.js';
+import uncompleteTask from '../controllers/Task/uncompleteTask.js';
 import deleteTask from '../controllers/Task/deleteTask.js';
 
 const router = express.Router();
@@ -36,6 +37,10 @@ router.put('/:id', updateTask);
 // Complete a task (awards XP)
 // POST /tasks/:id/complete
 router.post('/:id/complete', completeTask);
+
+// Uncomplete a task (removes completion and deducts XP)
+// DELETE /tasks/:id/complete
+router.delete('/:id/complete', uncompleteTask);
 
 // Delete task (soft delete by default, permanent with ?permanent=true)
 // DELETE /tasks/:id

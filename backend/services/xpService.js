@@ -432,6 +432,223 @@ export async function awardXP(userId, xpAmount, source, metadata = {}, transacti
 }
 
 /**
+ * Remove XP from user's character (for uncompletion)
+ * Handles level down if necessary
+ * @param {string} userId - User UUID
+ * @param {number} xpAmount - XP to remove
+ * @param {string} source - Source type (task_uncompleted, habit_uncompleted, etc)
+ * @param {Object} metadata - Metadata object
+ * @param {Object} transaction - Optional transaction object
+ * @returns {Object} { character, xpRemoved, leveledDown, oldLevel, newLevel }
+ */
+export async function removeXP(userId, xpAmount, source, metadata = {}, transaction) {
+  const useTransaction = transaction || await db.sequelize.transaction();
+
+  try {
+    // Validate and sanitize xpAmount
+    xpAmount = Number(xpAmount);
+    
+    if (isNaN(xpAmount) || !isFinite(xpAmount)) {
+      console.error('Invalid xpAmount passed to removeXP:', xpAmount, 'source:', source, 'metadata:', metadata);
+      throw new Error(`Invalid XP amount: ${xpAmount}. Expected a valid number.`);
+    }
+    
+    if (xpAmount < 0) {
+      console.error('Negative xpAmount passed to removeXP:', xpAmount);
+      throw new Error(`XP amount cannot be negative: ${xpAmount}`);
+    }
+    
+    if (xpAmount > 1000000) {
+      console.error('XP amount too large:', xpAmount);
+      throw new Error(`XP amount exceeds maximum allowed: ${xpAmount}`);
+    }
+
+    // Get user's character
+    const character = await db.Character.findOne({
+      where: { userId },
+      include: [
+        { model: db.Rank, as: 'rank' },
+        { 
+          model: db.User, 
+          as: 'user',
+          include: [{ model: db.UserProfile, as: 'profile' }]
+        }
+      ],
+      transaction: useTransaction
+    });
+
+    if (!character) {
+      throw new Error('Character not found');
+    }
+
+    // Validate character XP values are numbers
+    let currentXp = character.currentXp;
+    let totalXp = character.totalXp;
+    
+    // Convert to number, handling string representations
+    if (typeof currentXp === 'string') {
+      currentXp = parseInt(currentXp, 10);
+    }
+    if (typeof totalXp === 'string') {
+      totalXp = parseInt(totalXp, 10);
+    }
+    
+    currentXp = Number(currentXp) || 0;
+    totalXp = Number(totalXp) || 0;
+    
+    if (isNaN(currentXp) || !isFinite(currentXp) || currentXp < 0) {
+      console.error('Invalid currentXp in character:', character.currentXp, '->', currentXp);
+      currentXp = 0;
+      character.currentXp = 0;
+    }
+    
+    if (isNaN(totalXp) || !isFinite(totalXp) || totalXp < 0) {
+      console.error('Invalid totalXp in character:', character.totalXp, '->', totalXp);
+      totalXp = 0;
+      character.totalXp = 0;
+    }
+
+    const oldLevel = character.level;
+    const oldRank = character.rank;
+
+    // Remove XP (can go negative temporarily for level down calculation)
+    let newCurrentXp = currentXp - xpAmount;
+    let newTotalXp = Math.max(0, totalXp - xpAmount);
+
+    // Handle level down if currentXp becomes negative
+    let leveledDown = false;
+    let newLevel = oldLevel;
+
+    while (newCurrentXp < 0 && character.level > 1) {
+      // Need to level down
+      leveledDown = true;
+      character.level -= 1;
+      newLevel = character.level;
+      
+      // Calculate XP requirement for the level we're going down to
+      const xpForCurrentLevel = calculateXPForNextLevel(character.level - 1);
+      character.xpToNextLevel = xpForCurrentLevel;
+      
+      // Add back the XP requirement for the level we're losing
+      newCurrentXp += xpForCurrentLevel;
+    }
+
+    // Ensure non-negative
+    newCurrentXp = Math.max(0, newCurrentXp);
+    
+    character.currentXp = Math.floor(newCurrentXp);
+    character.totalXp = Math.floor(newTotalXp);
+
+    // Check for rank down
+    let rankedDown = false;
+    let newRank = oldRank;
+
+    if (leveledDown) {
+      const currentRank = await db.Rank.findOne({
+        where: {
+          minLevel: { [db.Sequelize.Op.lte]: character.level }
+        },
+        order: [['minLevel', 'DESC']],
+        transaction: useTransaction
+      });
+
+      if (currentRank && currentRank.id !== character.rankId) {
+        character.rankId = currentRank.id;
+        rankedDown = true;
+        newRank = currentRank;
+      }
+    }
+
+    await character.save({ transaction: useTransaction });
+
+    // Emit progress update via WebSocket
+    emitUserProgress(userId, {
+      xpEarned: -xpAmount, // Negative to show removal
+      currentXP: character.currentXp,
+      totalXP: character.totalXp,
+      level: character.level,
+      xpToNextLevel: character.xpToNextLevel,
+      source,
+      metadata
+    });
+
+    // Log activity
+    const activityLogData = {
+      userId,
+      activityType: source,
+      description: `Uncompleted ${source === 'task_uncompleted' ? 'task' : 'habit'} and removed ${xpAmount} XP`,
+      xpGained: -xpAmount, // Negative to show removal
+      isPublic: false,
+      importance: leveledDown ? 'milestone' : 'medium'
+    };
+
+    // Add related IDs based on source type
+    if (source === 'habit_uncompleted' && metadata.habitId) {
+      activityLogData.relatedHabitId = metadata.habitId;
+    } else if (source === 'task_uncompleted' && metadata.taskId) {
+      activityLogData.relatedTaskId = metadata.taskId;
+    }
+
+    await db.ActivityLog.create(activityLogData, { transaction: useTransaction });
+
+    // If ranked down, log that too
+    if (rankedDown) {
+      await db.ActivityLog.create({
+        userId,
+        activityType: 'rank_down',
+        description: `Ranked down to ${newRank.name} rank`,
+        xpGained: 0,
+        isPublic: true,
+        importance: 'milestone'
+      }, { transaction: useTransaction });
+    }
+
+    if (!transaction) {
+      await useTransaction.commit();
+    }
+
+    // Emit WebSocket events after transaction commits
+    if (leveledDown) {
+      // Note: We might want to emit a levelDown event, but for now we'll just use progress update
+      console.log(`User ${userId} leveled down from ${oldLevel} to ${newLevel}`);
+    }
+
+    if (rankedDown) {
+      // Note: We might want to emit a rankDown event
+      console.log(`User ${userId} ranked down from ${oldRank?.name} to ${newRank.name}`);
+    }
+
+    return {
+      character: await character.reload({ 
+        include: [
+          { model: db.Rank, as: 'rank' },
+          { 
+            model: db.User, 
+            as: 'user',
+            include: [{ model: db.UserProfile, as: 'profile' }]
+          }
+        ] 
+      }),
+      xpRemoved: xpAmount,
+      leveledDown,
+      oldLevel,
+      newLevel: leveledDown ? newLevel : null,
+      rankedDown,
+      oldRank: rankedDown ? oldRank : null,
+      newRank: rankedDown ? newRank : null,
+      currentXP: character.currentXp,
+      xpForNextLevel: character.xpToNextLevel
+    };
+
+  } catch (error) {
+    if (!transaction) {
+      await useTransaction.rollback();
+    }
+    throw error;
+  }
+}
+
+/**
  * Calculate XP required for next level
  * Uses a moderate growth curve to prevent excessive grinding
  * @param {number} currentLevel

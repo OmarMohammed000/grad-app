@@ -1,5 +1,6 @@
 import db from '../../models/index.js';
 import { Op } from 'sequelize';
+import { removeXP } from '../../services/xpService.js';
 
 const { Habit, HabitCompletion, sequelize } = db;
 
@@ -55,6 +56,15 @@ export const uncompleteHabit = async (req, res) => {
     const xpEarned = completion.xpEarned;
     const completionStreak = completion.streakCount;
 
+    // Remove XP from user's character
+    const xpRemovalResult = await removeXP(
+      req.user.userId,
+      xpEarned,
+      'habit_uncompleted',
+      { habitId: id },
+      transaction
+    );
+
     // Delete the completion
     await completion.destroy({ transaction });
 
@@ -96,12 +106,42 @@ export const uncompleteHabit = async (req, res) => {
 
     await habit.save({ transaction });
 
+    // Log activity
+    await db.ActivityLog.create({
+      userId: req.user.userId,
+      activityType: 'habit_uncompleted',
+      description: `Uncompleted habit: ${habit.title}`,
+      xpGained: -xpEarned, // Negative to show removal
+      isPublic: false,
+      importance: xpRemovalResult.leveledDown ? 'milestone' : 'medium',
+      relatedHabitId: habit.id,
+      metadata: {
+        xpRemoved: xpEarned,
+        leveledDown: xpRemovalResult.leveledDown,
+        oldLevel: xpRemovalResult.oldLevel,
+        newLevel: xpRemovalResult.newLevel
+      }
+    }, { transaction });
+
     await transaction.commit();
 
     res.json({
       message: 'Habit completion removed',
       habit,
-      xpRemoved: xpEarned
+      xpRemoved: xpEarned,
+      character: xpRemovalResult.leveledDown ? {
+        leveledDown: true,
+        oldLevel: xpRemovalResult.oldLevel,
+        newLevel: xpRemovalResult.newLevel,
+        currentXP: xpRemovalResult.currentXP,
+        xpForNextLevel: xpRemovalResult.xpForNextLevel,
+        rankedDown: xpRemovalResult.rankedDown,
+        oldRank: xpRemovalResult.oldRank?.name,
+        newRank: xpRemovalResult.newRank?.name
+      } : {
+        currentXP: xpRemovalResult.currentXP,
+        xpForNextLevel: xpRemovalResult.xpForNextLevel
+      }
     });
   } catch (error) {
     await transaction.rollback();

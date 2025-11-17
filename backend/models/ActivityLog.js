@@ -18,8 +18,8 @@ export default (sequelize) => {
     },
     activityType: {
       type: DataTypes.ENUM(
-        'task_completed', 'task_created', 'task_updated', 'task_deleted',
-        'habit_completed', 'habit_created', 'habit_updated', 'habit_deleted',
+        'task_completed', 'task_created', 'task_updated', 'task_deleted', 'task_uncompleted',
+        'habit_completed', 'habit_created', 'habit_updated', 'habit_deleted', 'habit_uncompleted',
         'level_up', 'rank_up', 'rank_down',
         'challenge_joined', 'challenge_created', 'challenge_completed', 'challenge_left',
         'challenge_task_completed', 'challenge_won', 'challenge_lost',
