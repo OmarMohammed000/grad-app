@@ -121,12 +121,13 @@ export default (sequelize) => {
       allowNull: true,
       comment: 'Description of prizes/rewards'
     },
-    requiresVerification: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: false,
-      comment: 'Whether task completions need verification'
-    },
+    // TODO: Verification system not yet implemented
+    // requiresVerification: {
+    //   type: DataTypes.BOOLEAN,
+    //   allowNull: false,
+    //   defaultValue: false,
+    //   comment: 'Whether task completions need verification'
+    // },
     isTeamBased: {
       type: DataTypes.BOOLEAN,
       allowNull: false,

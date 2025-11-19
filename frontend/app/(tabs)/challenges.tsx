@@ -7,6 +7,7 @@ import {
   RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,6 +39,9 @@ export default function ChallengesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [joinLoading, setJoinLoading] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [joinByCodeLoading, setJoinByCodeLoading] = useState(false);
+  const [foundChallenge, setFoundChallenge] = useState<Challenge | null>(null);
 
   // Load summary stats
   const loadSummary = useCallback(async () => {
@@ -181,6 +185,45 @@ export default function ChallengesScreen() {
     [loadChallenges, loadSummary]
   );
 
+  // Handle find challenge by code
+  const handleFindByCode = useCallback(async () => {
+    if (!inviteCode.trim()) {
+      return;
+    }
+
+    setJoinByCodeLoading(true);
+    try {
+      const response = await ChallengeService.findChallengeByCode(inviteCode.trim());
+      setFoundChallenge(response.challenge);
+    } catch (error) {
+      setFoundChallenge(null);
+      // Error handled by service
+    } finally {
+      setJoinByCodeLoading(false);
+    }
+  }, [inviteCode]);
+
+  // Handle join found challenge
+  const handleJoinFoundChallenge = useCallback(async () => {
+    if (!foundChallenge || joinByCodeLoading) return;
+
+    setJoinByCodeLoading(true);
+    try {
+      await ChallengeService.joinChallenge(foundChallenge.id, {
+        inviteCode: inviteCode.trim(),
+      });
+      // Reload challenges after joining
+      await loadChallenges();
+      await loadSummary();
+      setInviteCode('');
+      setFoundChallenge(null);
+    } catch (error) {
+      // Error handled by service
+    } finally {
+      setJoinByCodeLoading(false);
+    }
+  }, [foundChallenge, inviteCode, joinByCodeLoading, loadChallenges, loadSummary]);
+
   // Load data on mount and when tab changes
   useEffect(() => {
     loadData();
@@ -247,6 +290,113 @@ export default function ChallengesScreen() {
             value={summary.completedThisMonth}
             color="#06D6A0"
           />
+        </View>
+
+        {/* Join by Code Section */}
+        <View style={[styles.joinByCodeSection, { backgroundColor: theme.colors.card }, theme.shadows.sm]}>
+          <View style={styles.joinByCodeHeader}>
+            <Ionicons name="key-outline" size={24} color={theme.colors.primary} />
+            <Text style={[styles.joinByCodeTitle, { color: theme.colors.text }]}>
+              Join by Invite Code
+            </Text>
+          </View>
+          <View style={styles.joinByCodeInputRow}>
+            <View style={[styles.joinByCodeInputContainer, { backgroundColor: theme.colors.backgroundSecondary, borderColor: theme.colors.border }]}>
+              <TextInput
+                style={[styles.joinByCodeInput, { color: theme.colors.text }]}
+                value={inviteCode}
+                onChangeText={(text) => {
+                  setInviteCode(text);
+                  // Clear found challenge when code changes
+                  if (foundChallenge) {
+                    setFoundChallenge(null);
+                  }
+                }}
+                placeholder="Enter invite code"
+                placeholderTextColor={theme.colors.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                onSubmitEditing={handleFindByCode}
+              />
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.joinByCodeButton,
+                { backgroundColor: theme.colors.primary },
+                (!inviteCode.trim() || joinByCodeLoading) && styles.joinByCodeButtonDisabled
+              ]}
+              onPress={handleFindByCode}
+              disabled={!inviteCode.trim() || joinByCodeLoading}
+              activeOpacity={0.7}
+            >
+              {joinByCodeLoading ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Ionicons name="search" size={20} color="#ffffff" />
+              )}
+            </TouchableOpacity>
+          </View>
+          
+          {foundChallenge && (
+            <View style={[styles.foundChallengeCard, { backgroundColor: theme.colors.primary + '15', borderColor: theme.colors.primary + '40' }]}>
+              <View style={styles.foundChallengeHeader}>
+                <Text style={[styles.foundChallengeTitle, { color: theme.colors.text }]}>
+                  {foundChallenge.title}
+                </Text>
+                {foundChallenge.description && (
+                  <Text style={[styles.foundChallengeDescription, { color: theme.colors.textSecondary }]} numberOfLines={2}>
+                    {foundChallenge.description}
+                  </Text>
+                )}
+              </View>
+              <View style={styles.foundChallengeInfo}>
+                <View style={styles.foundChallengeInfoItem}>
+                  <Ionicons name="people-outline" size={16} color={theme.colors.textSecondary} />
+                  <Text style={[styles.foundChallengeInfoText, { color: theme.colors.textSecondary }]}>
+                    {foundChallenge.currentParticipants}
+                    {foundChallenge.maxParticipants ? `/${foundChallenge.maxParticipants}` : ''} participants
+                  </Text>
+                </View>
+                <View style={styles.foundChallengeInfoItem}>
+                  <Ionicons name="calendar-outline" size={16} color={theme.colors.textSecondary} />
+                  <Text style={[styles.foundChallengeInfoText, { color: theme.colors.textSecondary }]}>
+                    {ChallengeService.calculateDaysRemaining(foundChallenge.endDate)}d left
+                  </Text>
+                </View>
+              </View>
+              {foundChallenge.hasJoined ? (
+                <View style={[styles.alreadyJoinedBadge, { backgroundColor: theme.colors.success + '20' }]}>
+                  <Ionicons name="checkmark-circle" size={16} color={theme.colors.success} />
+                  <Text style={[styles.alreadyJoinedText, { color: theme.colors.success }]}>
+                    Already Joined
+                  </Text>
+                </View>
+              ) : foundChallenge.canJoin ? (
+                <TouchableOpacity
+                  style={[styles.joinFoundButton, { backgroundColor: theme.colors.primary }]}
+                  onPress={handleJoinFoundChallenge}
+                  disabled={joinByCodeLoading}
+                  activeOpacity={0.7}
+                >
+                  {joinByCodeLoading ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <>
+                      <Ionicons name="add-circle" size={18} color="#ffffff" />
+                      <Text style={styles.joinFoundButtonText}>Join Challenge</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              ) : (
+                <View style={[styles.cannotJoinBadge, { backgroundColor: theme.colors.danger + '20' }]}>
+                  <Ionicons name="close-circle" size={16} color={theme.colors.danger} />
+                  <Text style={[styles.cannotJoinText, { color: theme.colors.danger }]}>
+                    Cannot Join
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
         {/* Filter Tabs */}
@@ -367,5 +517,116 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  joinByCodeSection: {
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 20,
+  },
+  joinByCodeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  joinByCodeTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  joinByCodeInputRow: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  joinByCodeInputContainer: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  joinByCodeInput: {
+    fontSize: 16,
+    fontFamily: 'monospace',
+    letterSpacing: 1,
+  },
+  joinByCodeButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  joinByCodeButtonDisabled: {
+    opacity: 0.5,
+  },
+  foundChallengeCard: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  foundChallengeHeader: {
+    marginBottom: 12,
+  },
+  foundChallengeTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  foundChallengeDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  foundChallengeInfo: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 12,
+  },
+  foundChallengeInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  foundChallengeInfoText: {
+    fontSize: 13,
+  },
+  alreadyJoinedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    padding: 8,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  alreadyJoinedText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  joinFoundButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 10,
+    marginTop: 4,
+  },
+  joinFoundButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  cannotJoinBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    padding: 8,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  cannotJoinText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

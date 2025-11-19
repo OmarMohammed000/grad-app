@@ -27,12 +27,31 @@ export default async function joinChallenge(req, res) {
     }
 
     // Check if challenge is private and requires invite code
+    let invitedByUserId = null;
     if (!challenge.isPublic) {
       if (!inviteCode || inviteCode !== challenge.inviteCode) {
         await transaction.rollback();
         return res.status(403).json({ 
           message: 'Invalid or missing invite code for private challenge' 
         });
+      }
+      
+      // Try to find who shared the invite code (if provided in request)
+      // For now, we'll track if someone shared the code by checking if there's an inviter
+      // In future, we can add a separate endpoint to invite specific users
+      const { inviterId } = req.body;
+      if (inviterId && inviterId !== req.user.userId) {
+        // Verify inviter is a participant
+        const inviter = await db.ChallengeParticipant.findOne({
+          where: {
+            challengeId: id,
+            userId: inviterId
+          },
+          transaction
+        });
+        if (inviter) {
+          invitedByUserId = inviterId;
+        }
       }
     }
 
@@ -67,6 +86,7 @@ export default async function joinChallenge(req, res) {
       userId: req.user.userId,
       status: 'active',
       teamId: challenge.isTeamBased ? teamId : null,
+      invitedBy: invitedByUserId, // Track who invited this user (if applicable)
       joinedAt: new Date()
     }, { transaction });
 

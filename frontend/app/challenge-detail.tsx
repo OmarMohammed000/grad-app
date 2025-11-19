@@ -7,7 +7,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Alert,
+  Platform,
 } from 'react-native';
+// @ts-ignore - Clipboard is deprecated but still available in React Native
+import { Clipboard } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +24,7 @@ import {
   LeaderboardEntry,
 } from '@/services/challenges';
 import { JoinChallengeModal, ChallengeTaskFormModal } from '@/components/challenges';
+import Toast from 'react-native-toast-message';
 
 export default function ChallengeDetailScreen() {
   const theme = useTheme();
@@ -38,6 +43,8 @@ export default function ChallengeDetailScreen() {
   const [completeTaskLoading, setCompleteTaskLoading] = useState<string | null>(null);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [loadingInviteCode, setLoadingInviteCode] = useState(false);
 
   // Set navigation header title and styling to match custom header
   useLayoutEffect(() => {
@@ -76,6 +83,19 @@ export default function ChallengeDetailScreen() {
       const response = await ChallengeService.getChallenge(id);
       setChallenge(response.challenge);
       setTasks(response.challenge.challengeTasks || []);
+      
+      // Load invite code if user is creator/moderator and challenge is private
+      if (!response.challenge.isPublic && 
+          (response.challenge.createdBy === response.challenge.userParticipation?.userId ||
+           response.challenge.userParticipation?.role === 'moderator')) {
+        try {
+          const inviteData = await ChallengeService.getInviteCode(id);
+          setInviteCode(inviteData.inviteCode);
+        } catch (error) {
+          // Silently fail - user might not have permission
+          console.log('Could not load invite code:', error);
+        }
+      }
     } catch (error) {
       console.error('Error loading challenge:', error);
     }
@@ -230,6 +250,54 @@ export default function ChallengeDetailScreen() {
     [id, loadChallenge]
   );
 
+  // Handle copy invite code
+  const handleCopyInviteCode = useCallback(async () => {
+    if (!inviteCode) return;
+    
+    try {
+      await Clipboard.setString(inviteCode);
+      Toast.show({
+        type: 'success',
+        text1: 'Copied!',
+        text2: 'Invite code copied to clipboard',
+      });
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to copy invite code',
+      });
+    }
+  }, [inviteCode]);
+
+  // Handle regenerate invite code
+  const handleRegenerateInviteCode = useCallback(async () => {
+    if (!id) return;
+    
+    Alert.alert(
+      'Regenerate Invite Code',
+      'Are you sure you want to regenerate the invite code? The old code will no longer work.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Regenerate',
+          style: 'destructive',
+          onPress: async () => {
+            setLoadingInviteCode(true);
+            try {
+              const data = await ChallengeService.getInviteCode(id, true);
+              setInviteCode(data.inviteCode);
+            } catch (error) {
+              // Error handled by service
+            } finally {
+              setLoadingInviteCode(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [id]);
+
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -272,6 +340,49 @@ export default function ChallengeDetailScreen() {
             <Text style={[styles.challengeDescription, { color: theme.colors.textSecondary }]}>
               {challenge.description}
             </Text>
+          )}
+
+          {/* Invite Code Section (for private challenges, creators/moderators only) */}
+          {!challenge.isPublic && inviteCode && 
+           (challenge.createdBy === challenge.userParticipation?.userId ||
+            challenge.userParticipation?.role === 'moderator') && (
+            <View style={[styles.inviteCodeSection, { backgroundColor: theme.colors.primary + '15', borderColor: theme.colors.primary + '40' }]}>
+              <View style={styles.inviteCodeHeader}>
+                <Ionicons name="key-outline" size={20} color={theme.colors.primary} />
+                <Text style={[styles.inviteCodeLabel, { color: theme.colors.primary }]}>
+                  Invite Code
+                </Text>
+              </View>
+              <View style={styles.inviteCodeRow}>
+                <Text style={[styles.inviteCodeText, { color: theme.colors.text }]} selectable>
+                  {inviteCode}
+                </Text>
+                <View style={styles.inviteCodeActions}>
+                  <TouchableOpacity
+                    style={[styles.inviteCodeButton, { backgroundColor: theme.colors.primary }]}
+                    onPress={handleCopyInviteCode}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="copy-outline" size={18} color="#ffffff" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.inviteCodeButton, { backgroundColor: theme.colors.backgroundSecondary }]}
+                    onPress={handleRegenerateInviteCode}
+                    disabled={loadingInviteCode}
+                    activeOpacity={0.7}
+                  >
+                    {loadingInviteCode ? (
+                      <ActivityIndicator size="small" color={theme.colors.text} />
+                    ) : (
+                      <Ionicons name="refresh-outline" size={18} color={theme.colors.text} />
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <Text style={[styles.inviteCodeHint, { color: theme.colors.textSecondary }]}>
+                Share this code with others to invite them to your private challenge
+              </Text>
+            </View>
           )}
           
           <View style={styles.challengeInfoRow}>
@@ -474,14 +585,15 @@ export default function ChallengeDetailScreen() {
                           </Text>
                         </View>
                       )}
-                      {task.requiresProof && (
+                      {/* TODO: Verification system not yet implemented */}
+                      {/* {task.requiresProof && (
                         <View style={[styles.taskCardMetaItem, { backgroundColor: theme.colors.warning + '15' }]}>
                           <Ionicons name="shield-checkmark" size={14} color={theme.colors.warning} />
                           <Text style={[styles.taskCardMetaText, { color: theme.colors.warning }]}>
                             Proof Required
                           </Text>
                         </View>
-                      )}
+                      )} */}
                     </View>
                   </View>
 
@@ -953,6 +1065,50 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  inviteCodeSection: {
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  inviteCodeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  inviteCodeLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  inviteCodeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  inviteCodeText: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '700',
+    fontFamily: 'monospace',
+    letterSpacing: 2,
+  },
+  inviteCodeActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  inviteCodeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  inviteCodeHint: {
+    fontSize: 12,
+    fontStyle: 'italic',
   },
 });
 

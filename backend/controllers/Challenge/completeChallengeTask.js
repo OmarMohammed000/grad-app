@@ -10,7 +10,8 @@ export default async function completeChallengeTask(req, res) {
 
   try {
     const { challengeId, taskId } = req.params;
-    const { proof, proofImageUrl, durationMinutes } = req.body;
+    // const { proof, proofImageUrl, durationMinutes } = req.body; // TODO: Verification system not yet implemented
+    const { durationMinutes } = req.body;
 
     // Get challenge and task
     const challenge = await db.GroupChallenge.findByPk(challengeId, { transaction });
@@ -102,14 +103,15 @@ export default async function completeChallengeTask(req, res) {
       });
     }
 
+    // TODO: Verification system not yet implemented
     // Check if proof is required
-    if (task.requiresProof && !proof && !proofImageUrl) {
-      await transaction.rollback();
-      return res.status(400).json({ 
-        message: 'Proof is required for this task',
-        proofInstructions: task.proofInstructions
-      });
-    }
+    // if (task.requiresProof && !proof && !proofImageUrl) {
+    //   await transaction.rollback();
+    //   return res.status(400).json({ 
+    //     message: 'Proof is required for this task',
+    //     proofInstructions: task.proofInstructions
+    //   });
+    // }
 
     // Create completion
     const completion = await db.ChallengeTaskCompletion.create({
@@ -119,9 +121,9 @@ export default async function completeChallengeTask(req, res) {
       pointsEarned: task.pointValue,
       xpEarned: task.xpReward,
       completedAt: new Date(),
-      proof,
-      proofImageUrl,
-      isVerified: !task.requiresVerification, // Auto-verify if verification not required
+      // proof, // TODO: Verification system not yet implemented
+      // proofImageUrl, // TODO: Verification system not yet implemented
+      // isVerified: !task.requiresVerification, // Auto-verify if verification not required
       durationMinutes,
       completionNumber: previousCompletions + 1
     }, { transaction });
@@ -209,8 +211,9 @@ export default async function completeChallengeTask(req, res) {
       }, { transaction });
     }
 
+    // TODO: Verification system not yet implemented - always award XP for now
     // Award XP to user character (if verification not required)
-    if (!task.requiresVerification) {
+    // if (!task.requiresVerification) {
       await awardXP(
         req.user.userId,
         task.xpReward,
@@ -218,14 +221,15 @@ export default async function completeChallengeTask(req, res) {
         { challengeId, taskId, taskTitle: task.title },
         transaction
       );
-    }
+    // }
 
     await transaction.commit();
 
     return res.json({
-      message: task.requiresVerification 
-        ? 'Task completed! Awaiting verification.'
-        : 'Task completed successfully!',
+      message: 'Task completed successfully!',
+      // message: task.requiresVerification 
+      //   ? 'Task completed! Awaiting verification.'
+      //   : 'Task completed successfully!', // TODO: Verification system not yet implemented
       completion,
       participant,
       challengeCompleted: participant.status === 'completed'

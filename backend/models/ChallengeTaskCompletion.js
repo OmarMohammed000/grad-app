@@ -53,41 +53,42 @@ export default (sequelize) => {
       allowNull: false,
       defaultValue: DataTypes.NOW
     },
-    proof: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-      comment: 'Text proof of task completion'
-    },
-    proofImageUrl: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-      comment: 'Image proof URL'
-    },
-    isVerified: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: false,
-      comment: 'Whether completion has been verified'
-    },
-    verifiedBy: {
-      type: DataTypes.UUID,
-      allowNull: true,
-      references: {
-        model: 'users',
-        key: 'id'
-      },
-      comment: 'Who verified the completion'
-    },
-    verifiedAt: {
-      type: DataTypes.DATE,
-      allowNull: true,
-      comment: 'When completion was verified'
-    },
-    verificationNotes: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-      comment: 'Verifier notes'
-    },
+    // TODO: Verification system not yet implemented
+    // proof: {
+    //   type: DataTypes.TEXT,
+    //   allowNull: true,
+    //   comment: 'Text proof of task completion'
+    // },
+    // proofImageUrl: {
+    //   type: DataTypes.TEXT,
+    //   allowNull: true,
+    //   comment: 'Image proof URL'
+    // },
+    // isVerified: {
+    //   type: DataTypes.BOOLEAN,
+    //   allowNull: false,
+    //   defaultValue: false,
+    //   comment: 'Whether completion has been verified'
+    // },
+    // verifiedBy: {
+    //   type: DataTypes.UUID,
+    //   allowNull: true,
+    //   references: {
+    //     model: 'users',
+    //     key: 'id'
+    //   },
+    //   comment: 'Who verified the completion'
+    // },
+    // verifiedAt: {
+    //   type: DataTypes.DATE,
+    //   allowNull: true,
+    //   comment: 'When completion was verified'
+    // },
+    // verificationNotes: {
+    //   type: DataTypes.TEXT,
+    //   allowNull: true,
+    //   comment: 'Verifier notes'
+    // },
     durationMinutes: {
       type: DataTypes.INTEGER,
       allowNull: true,

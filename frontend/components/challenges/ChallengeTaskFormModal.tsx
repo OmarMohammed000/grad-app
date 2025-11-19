@@ -56,8 +56,8 @@ export function ChallengeTaskFormModal({
   const [isRepeatable, setIsRepeatable] = useState(false);
   const [maxCompletions, setMaxCompletions] = useState('');
   const [tags, setTags] = useState('');
-  const [requiresProof, setRequiresProof] = useState(false);
-  const [proofInstructions, setProofInstructions] = useState('');
+  // const [requiresProof, setRequiresProof] = useState(false); // TODO: Verification system not yet implemented
+  // const [proofInstructions, setProofInstructions] = useState(''); // TODO: Verification system not yet implemented
   const [estimatedDuration, setEstimatedDuration] = useState('');
   const [availableFrom, setAvailableFrom] = useState<string | undefined>();
   const [availableUntil, setAvailableUntil] = useState<string | undefined>();
@@ -75,8 +75,8 @@ export function ChallengeTaskFormModal({
       setIsRepeatable(task.isRepeatable || false);
       setMaxCompletions(task.maxCompletions ? String(task.maxCompletions) : '');
       setTags(task.tags?.join(', ') || '');
-      setRequiresProof(task.requiresProof || false);
-      setProofInstructions(task.proofInstructions || '');
+      // setRequiresProof(task.requiresProof || false); // TODO: Verification system not yet implemented
+      // setProofInstructions(task.proofInstructions || ''); // TODO: Verification system not yet implemented
       setEstimatedDuration(task.estimatedDuration ? String(task.estimatedDuration) : '');
       setAvailableFrom(task.availableFrom);
       setAvailableUntil(task.availableUntil);
@@ -92,8 +92,8 @@ export function ChallengeTaskFormModal({
       setIsRepeatable(false);
       setMaxCompletions('');
       setTags('');
-      setRequiresProof(false);
-      setProofInstructions('');
+      // setRequiresProof(false); // TODO: Verification system not yet implemented
+      // setProofInstructions(''); // TODO: Verification system not yet implemented
       setEstimatedDuration('');
       setAvailableFrom(undefined);
       setAvailableUntil(undefined);
@@ -153,8 +153,8 @@ export function ChallengeTaskFormModal({
         maxCompletions: isRepeatable && maxCompletions ? Number(maxCompletions) : undefined,
         orderIndex: existingTasks.length,
         tags: tagsArray.length > 0 ? tagsArray : undefined,
-        requiresProof,
-        proofInstructions: proofInstructions.trim() || undefined,
+        // requiresProof, // TODO: Verification system not yet implemented
+        // proofInstructions: proofInstructions.trim() || undefined, // TODO: Verification system not yet implemented
         estimatedDuration: estimatedDuration ? Number(estimatedDuration) : undefined,
         availableFrom,
         availableUntil,
@@ -365,8 +365,9 @@ export function ChallengeTaskFormModal({
                 />
               )}
 
+              {/* TODO: Verification system not yet implemented */}
               {/* Requires Proof Toggle */}
-              <View style={styles.switchRow}>
+              {/* <View style={styles.switchRow}>
                 <View style={styles.switchLabelContainer}>
                   <Ionicons name="shield-checkmark" size={20} color={theme.colors.text} />
                   <Text style={[styles.switchLabel, { color: theme.colors.text }]}>
@@ -379,10 +380,10 @@ export function ChallengeTaskFormModal({
                   trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
                   thumbColor="#ffffff"
                 />
-              </View>
+              </View> */}
 
               {/* Proof Instructions (if proof required) */}
-              {requiresProof && (
+              {/* {requiresProof && (
                 <Input
                   label="Proof Instructions"
                   placeholder="Instructions for providing proof"
@@ -392,7 +393,7 @@ export function ChallengeTaskFormModal({
                   numberOfLines={2}
                   leftIcon="document-text-outline"
                 />
-              )}
+              )} */}
 
               {/* Optional Fields */}
               <Input

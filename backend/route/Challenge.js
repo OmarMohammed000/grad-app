@@ -11,6 +11,8 @@ import addChallengeTask from '../controllers/Challenge/addChallengeTask.js';
 import completeChallengeTask from '../controllers/Challenge/completeChallengeTask.js';
 import getChallengeLeaderboard from '../controllers/Challenge/getChallengeLeaderboard.js';
 import getChallengeProgress from '../controllers/Challenge/getChallengeProgress.js';
+import getInviteCode from '../controllers/Challenge/getInviteCode.js';
+import findChallengeByCode from '../controllers/Challenge/findChallengeByCode.js';
 
 const router = express.Router();
 
@@ -26,6 +28,9 @@ router.post('/', createChallenge);
 // Get all challenges (public + user's challenges)
 // Query: ?status=active&challengeType=competitive&myChallenges=true&page=1&limit=20
 router.get('/', getChallenges);
+
+// Find challenge by invite code (must be before /:id route)
+router.get('/by-code/:inviteCode', findChallengeByCode);
 
 // Get single challenge
 router.get('/:id', getChallenge);
@@ -62,5 +67,12 @@ router.get('/:id/leaderboard', getChallengeLeaderboard);
 
 // Get user's progress in challenge
 router.get('/:id/progress', getChallengeProgress);
+
+/**
+ * Invite Management
+ */
+// Get or regenerate invite code (creator/moderator only)
+// Query: ?regenerate=true to regenerate
+router.get('/:id/invite-code', getInviteCode);
 
 export default router;

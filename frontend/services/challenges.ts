@@ -25,7 +25,7 @@ export interface Challenge {
   tags: string[];
   rules?: string;
   prizeDescription?: string;
-  requiresVerification: boolean;
+  // requiresVerification: boolean; // TODO: Verification system not yet implemented
   isTeamBased: boolean;
   teamSize?: number;
   difficultyLevel: 'beginner' | 'intermediate' | 'advanced' | 'expert';
@@ -57,8 +57,8 @@ export interface ChallengeTask {
   maxCompletions?: number;
   orderIndex: number;
   tags: string[];
-  requiresProof: boolean;
-  proofInstructions?: string;
+  // requiresProof: boolean; // TODO: Verification system not yet implemented
+  // proofInstructions?: string; // TODO: Verification system not yet implemented
   estimatedDuration?: number; // minutes
   availableFrom?: string; // ISO date
   availableUntil?: string; // ISO date
@@ -107,9 +107,9 @@ export interface ChallengeTaskCompletion {
   completedAt: string;
   proof?: string;
   proofImageUrl?: string;
-  isVerified: boolean;
-  verifiedBy?: string;
-  verifiedAt?: string;
+  // isVerified: boolean; // TODO: Verification system not yet implemented
+  // verifiedBy?: string; // TODO: Verification system not yet implemented
+  // verifiedAt?: string; // TODO: Verification system not yet implemented
   durationMinutes?: number;
   completionNumber: number;
   challengeTask?: ChallengeTask;
@@ -151,7 +151,7 @@ export interface CreateChallengeData {
   tags?: string[];
   rules?: string;
   prizeDescription?: string;
-  requiresVerification?: boolean;
+  // requiresVerification?: boolean; // TODO: Verification system not yet implemented
   isTeamBased?: boolean;
   teamSize?: number;
   difficultyLevel?: 'beginner' | 'intermediate' | 'advanced' | 'expert';
@@ -189,8 +189,8 @@ export interface AddChallengeTaskData {
   maxCompletions?: number;
   orderIndex?: number;
   tags?: string[];
-  requiresProof?: boolean;
-  proofInstructions?: string;
+  // requiresProof?: boolean; // TODO: Verification system not yet implemented
+  // proofInstructions?: string; // TODO: Verification system not yet implemented
   estimatedDuration?: number;
   availableFrom?: string;
   availableUntil?: string;
@@ -198,8 +198,8 @@ export interface AddChallengeTaskData {
 }
 
 export interface CompleteChallengeTaskData {
-  proof?: string;
-  proofImageUrl?: string;
+  // proof?: string; // TODO: Verification system not yet implemented
+  // proofImageUrl?: string; // TODO: Verification system not yet implemented
   durationMinutes?: number;
 }
 
@@ -563,6 +563,61 @@ export class ChallengeService {
     } catch (error: any) {
       console.error('Error fetching progress:', error);
       const message = error.response?.data?.message || 'Failed to fetch progress';
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Find a challenge by invite code
+   */
+  static async findChallengeByCode(inviteCode: string): Promise<{
+    challenge: Challenge & {
+      hasJoined: boolean;
+      canJoin: boolean;
+    };
+  }> {
+    try {
+      const response = await api.get(`/challenges/by-code/${inviteCode}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error finding challenge by code:', error);
+      const message = error.response?.data?.message || 'Failed to find challenge';
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Get or regenerate invite code for a challenge (creator/moderator only)
+   */
+  static async getInviteCode(
+    id: string,
+    regenerate: boolean = false
+  ): Promise<{ inviteCode: string; message?: string }> {
+    try {
+      const response = await api.get(`/challenges/${id}/invite-code`, {
+        params: { regenerate: regenerate ? 'true' : 'false' },
+      });
+      if (regenerate) {
+        Toast.show({
+          type: 'success',
+          text1: 'Success',
+          text2: 'Invite code regenerated!',
+        });
+      }
+      return response.data;
+    } catch (error: any) {
+      console.error('Error getting invite code:', error);
+      const message = error.response?.data?.message || 'Failed to get invite code';
       Toast.show({
         type: 'error',
         text1: 'Error',

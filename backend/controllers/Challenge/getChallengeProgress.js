@@ -99,8 +99,8 @@ export default async function getChallengeProgress(req, res) {
         difficulty: task.difficulty,
         taskType: task.taskType,
         pointValue: task.pointValue,
-        xpReward: task.xpReward,
-        requiresProof: task.requiresProof
+        xpReward: task.xpReward
+        // requiresProof: task.requiresProof // TODO: Verification system not yet implemented
       })),
       challenge: {
         id: challenge.id,

@@ -63,7 +63,7 @@ export function ChallengeFormModal({
   const [tags, setTags] = useState('');
   const [rules, setRules] = useState('');
   const [prizeDescription, setPrizeDescription] = useState('');
-  const [requiresVerification, setRequiresVerification] = useState(false);
+  // const [requiresVerification, setRequiresVerification] = useState(false); // TODO: Verification system not yet implemented
   const [isTeamBased, setIsTeamBased] = useState(false);
   const [teamSize, setTeamSize] = useState('');
   const [difficultyLevel, setDifficultyLevel] = useState<'beginner' | 'intermediate' | 'advanced' | 'expert'>('intermediate');
@@ -85,7 +85,7 @@ export function ChallengeFormModal({
       setTags(challenge.tags?.join(', ') || '');
       setRules(challenge.rules || '');
       setPrizeDescription(challenge.prizeDescription || '');
-      setRequiresVerification(challenge.requiresVerification || false);
+      // setRequiresVerification(challenge.requiresVerification || false); // TODO: Verification system not yet implemented
       setIsTeamBased(challenge.isTeamBased || false);
       setTeamSize(challenge.teamSize ? String(challenge.teamSize) : '');
       setDifficultyLevel(challenge.difficultyLevel || 'intermediate');
@@ -105,7 +105,7 @@ export function ChallengeFormModal({
       setTags('');
       setRules('');
       setPrizeDescription('');
-      setRequiresVerification(false);
+      // setRequiresVerification(false); // TODO: Verification system not yet implemented
       setIsTeamBased(false);
       setTeamSize('');
       setDifficultyLevel('intermediate');
@@ -180,7 +180,7 @@ export function ChallengeFormModal({
         tags: tagsArray.length > 0 ? tagsArray : undefined,
         rules: rules.trim() || undefined,
         prizeDescription: prizeDescription.trim() || undefined,
-        requiresVerification,
+        // requiresVerification, // TODO: Verification system not yet implemented
         isTeamBased,
         teamSize: isTeamBased ? Number(teamSize) : undefined,
         difficultyLevel,
@@ -449,8 +449,9 @@ export function ChallengeFormModal({
                   />
                 </View>
 
+                {/* TODO: Verification system not yet implemented */}
                 {/* Requires Verification Toggle */}
-                <View style={styles.switchRow}>
+                {/* <View style={styles.switchRow}>
                   <View style={styles.switchLabelContainer}>
                     <Ionicons name="shield-checkmark-outline" size={20} color={theme.colors.text} />
                     <Text style={[styles.switchLabel, { color: theme.colors.text }]}>
@@ -463,7 +464,7 @@ export function ChallengeFormModal({
                     trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
                     thumbColor="#ffffff"
                   />
-                </View>
+                </View> */}
 
                 {/* Team Based Toggle */}
                 <View style={styles.switchRow}>

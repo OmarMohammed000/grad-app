@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ScrollView, StyleSheet, RefreshControl } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { 
   Header, 
@@ -16,6 +17,7 @@ import TodoService, { CreateTodoData, Todo } from '@/services/todos';
 
 export default function HomeScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [userProgress, setUserProgress] = useState({
@@ -154,8 +156,8 @@ export default function HomeScreen() {
   };
 
   const handleJoinChallenge = () => {
-    console.log('Join Challenge pressed');
-    // TODO: Navigate to challenges screen
+    // Navigate to challenges tab
+    router.push('/(tabs)/challenges');
   };
 
   const handlePressChallenge = (id: string) => {

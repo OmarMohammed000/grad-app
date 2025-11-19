@@ -24,7 +24,7 @@ export default async function createChallenge(req, res) {
       tags = [],
       rules,
       prizeDescription,
-      requiresVerification = false,
+      // requiresVerification = false, // TODO: Verification system not yet implemented
       isTeamBased = false,
       teamSize,
       difficultyLevel = 'intermediate'
@@ -89,7 +89,7 @@ export default async function createChallenge(req, res) {
       tags,
       rules,
       prizeDescription,
-      requiresVerification,
+      // requiresVerification, // TODO: Verification system not yet implemented
       isTeamBased,
       teamSize,
       difficultyLevel
