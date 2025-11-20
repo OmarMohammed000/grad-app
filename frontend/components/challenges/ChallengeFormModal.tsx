@@ -340,15 +340,15 @@ export function ChallengeFormModal({
               />
 
               {/* Goal Description (optional) */}
-              <Input
+                <Input
                 label="Goal Description"
                 placeholder="Describe the goal (optional)"
-                value={goalDescription}
-                onChangeText={setGoalDescription}
-                multiline
-                numberOfLines={2}
-                leftIcon="bulb"
-              />
+                  value={goalDescription}
+                  onChangeText={setGoalDescription}
+                  multiline
+                  numberOfLines={2}
+                  leftIcon="bulb"
+                />
 
               {/* Dates */}
               <View style={styles.dateRow}>

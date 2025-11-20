@@ -31,28 +31,33 @@ export function HabitCard({
   const theme = useTheme();
 
   const renderCompletionIndicators = () => {
+    const totalDots = 7;
+    const streakDots = Math.min(currentStreak, totalDots);
     const indicators = [];
-    const total = frequency === 'daily' ? 7 : targetCount;
-    const completed = frequency === 'daily' ? completionsThisWeek : completedToday ? 1 : 0;
 
-    for (let i = 0; i < Math.min(total, 7); i++) {
-      const isCompleted = i < completed;
+    for (let i = 0; i < totalDots; i++) {
+      const isFilled = i < streakDots;
       indicators.push(
         <View
           key={i}
           style={[
             styles.indicator,
             {
-              backgroundColor: isCompleted
+              backgroundColor: isFilled
                 ? theme.colors.success
-                : theme.colors.border,
+                : 'transparent',
+              borderColor: theme.colors.border,
+              borderWidth: 1,
             },
           ]}
         >
-          {isCompleted && <Ionicons name="checkmark" size={12} color="#ffffff" />}
+          {isFilled && (
+            <Ionicons name="checkmark" size={16} color="#ffffff" />
+          )}
         </View>
       );
     }
+
     return indicators;
   };
 
