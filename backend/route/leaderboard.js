@@ -1,6 +1,7 @@
 import express from 'express';
 import { getGlobalLeaderboard } from '../controllers/Leaderboard/getGloballeaderboard.js';
 import { getUserStats } from '../controllers/Leaderboard/getUserStats.js';
+import { getUserActivity } from '../controllers/Leaderboard/getUserActivity.js';
 import authMiddleware from '../middleware/auth.js';
 
 const router = express.Router();
@@ -10,5 +11,6 @@ router.get('/', authMiddleware, getGlobalLeaderboard);
 
 // User stats (me or specific user)
 router.get('/users/:id/stats', authMiddleware, getUserStats);
+router.get('/users/:id/activity', authMiddleware, getUserActivity);
 
 export default router;

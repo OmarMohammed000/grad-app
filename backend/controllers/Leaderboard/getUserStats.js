@@ -2,6 +2,16 @@ import db from '../../models/index.js';
 
 const { User, UserProfile, Character, Task, Habit, TaskCompletion, HabitCompletion, sequelize } = db;
 
+const safeSum = async (model, field, where) => {
+  try {
+    const result = await model.sum(field, { where });
+    return Number(result) || 0;
+  } catch (error) {
+    console.error(`Error summing ${field}:`, error);
+    return 0;
+  }
+};
+
 export const getUserStats = async (req, res) => {
   try {
     const { id } = req.params;
@@ -37,7 +47,7 @@ export const getUserStats = async (req, res) => {
       attributes: [
         [sequelize.fn('COUNT', sequelize.col('id')), 'total'],
         [sequelize.fn('COUNT', sequelize.literal(`CASE WHEN status = 'completed' THEN 1 END`)), 'completed'],
-        [sequelize.fn('COUNT', sequelize.literal(`CASE WHEN status = 'active' THEN 1 END`)), 'active'],
+        [sequelize.fn('COUNT', sequelize.literal(`CASE WHEN status IN ('pending','in_progress') THEN 1 END`)), 'active'],
         [sequelize.fn('COUNT', sequelize.literal(`CASE WHEN status = 'pending' THEN 1 END`)), 'pending']
       ],
       raw: true
@@ -61,33 +71,22 @@ export const getUserStats = async (req, res) => {
     const monthAgo = new Date();
     monthAgo.setMonth(monthAgo.getMonth() - 1);
 
-    const [weeklyTaskXP, monthlyTaskXP] = await Promise.all([
-      TaskCompletion.sum('xpEarned', {
-        where: {
-          userId: targetUserId,
-          completedAt: { [db.Sequelize.Op.gte]: weekAgo }
-        }
+    const [weeklyTaskXP, monthlyTaskXP, weeklyHabitXP, monthlyHabitXP] = await Promise.all([
+      safeSum(TaskCompletion, 'xpEarned', {
+        userId: targetUserId,
+        completedAt: { [db.Sequelize.Op.gte]: weekAgo }
       }),
-      TaskCompletion.sum('xpEarned', {
-        where: {
-          userId: targetUserId,
-          completedAt: { [db.Sequelize.Op.gte]: monthAgo }
-        }
-      })
-    ]);
-
-    const [weeklyHabitXP, monthlyHabitXP] = await Promise.all([
-      HabitCompletion.sum('xpAwarded', {
-        where: {
-          userId: targetUserId,
-          completedAt: { [db.Sequelize.Op.gte]: weekAgo }
-        }
+      safeSum(TaskCompletion, 'xpEarned', {
+        userId: targetUserId,
+        completedAt: { [db.Sequelize.Op.gte]: monthAgo }
       }),
-      HabitCompletion.sum('xpAwarded', {
-        where: {
-          userId: targetUserId,
-          completedAt: { [db.Sequelize.Op.gte]: monthAgo }
-        }
+      safeSum(HabitCompletion, 'xpEarned', {
+        userId: targetUserId,
+        createdAt: { [db.Sequelize.Op.gte]: weekAgo }
+      }),
+      safeSum(HabitCompletion, 'xpEarned', {
+        userId: targetUserId,
+        createdAt: { [db.Sequelize.Op.gte]: monthAgo }
       })
     ]);
 
@@ -103,8 +102,8 @@ export const getUserStats = async (req, res) => {
         habits: habitStats || { total: 0, avgStreak: 0, maxStreak: 0, totalCompletions: 0 },
         xp: {
           total: user.character?.totalXp || 0,
-          weekly: (weeklyTaskXP || 0) + (weeklyHabitXP || 0),
-          monthly: (monthlyTaskXP || 0) + (monthlyHabitXP || 0)
+          weekly: weeklyTaskXP + weeklyHabitXP,
+          monthly: monthlyTaskXP + monthlyHabitXP
         }
       }
     });
