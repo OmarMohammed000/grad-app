@@ -1,5 +1,6 @@
 import db from '../../models/index.js';
 import { Op } from 'sequelize';
+import { finalizeChallengeIfNeeded } from '../../services/challengeStatusService.js';
 
 /**
  * Get all challenges (public + user's challenges)
@@ -135,6 +136,10 @@ export default async function getChallenges(req, res) {
       order: [[sortField, sortOrder.toUpperCase()]],
       distinct: true
     });
+
+    await Promise.all(
+      rows.map(challenge => finalizeChallengeIfNeeded(challenge))
+    );
 
     // Check if user has joined each challenge
     const challengesWithJoinStatus = rows.map(challenge => {

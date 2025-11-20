@@ -17,22 +17,8 @@ export function ChallengeCard({ challenge, onPress, onJoin, showJoinButton }: Ch
   const color = ChallengeService.getChallengeColor(challenge.difficultyLevel, challenge.challengeType);
   const icon = ChallengeService.getChallengeIcon(challenge.goalType, challenge.tags);
   
-  // Calculate progress based on goalType
-  let progress = 0;
-  let total = challenge.goalTarget;
-  let progressLabel = '';
-  
-  if (challenge.goalType === 'task_count') {
-    progressLabel = 'tasks';
-  } else if (challenge.goalType === 'total_xp') {
-    progressLabel = 'XP';
-  } else if (challenge.goalType === 'habit_streak') {
-    progressLabel = 'days';
-  } else {
-    progressLabel = 'progress';
-  }
-
-  const progressPercentage = total > 0 ? (challenge.currentParticipants / total) * 100 : 0;
+  const goalUnit = challenge.goalType === 'total_xp' ? 'XP' : 'tasks';
+  const goalLabel = challenge.goalType === 'total_xp' ? 'Total XP' : 'Task Count';
 
   return (
     <TouchableOpacity
@@ -64,27 +50,17 @@ export function ChallengeCard({ challenge, onPress, onJoin, showJoinButton }: Ch
 
         <View style={styles.stats}>
           <View style={styles.progressSection}>
-            <Text style={styles.progressText}>Goal</Text>
+            <Text style={styles.progressText}>{goalLabel}</Text>
             <Text style={styles.progressValue}>
-              {challenge.goalTarget} {progressLabel}
+              {challenge.goalTarget} {goalUnit}
             </Text>
           </View>
-          
           <View style={styles.rewardSection}>
             <Text style={styles.rewardText}>+{challenge.xpReward} XP</Text>
             <Text style={styles.daysText}>
               {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'} left
             </Text>
           </View>
-        </View>
-
-        <View style={styles.progressBarContainer}>
-          <View 
-            style={[
-              styles.progressBar,
-              { width: `${Math.min(progressPercentage, 100)}%` }
-            ]} 
-          />
         </View>
 
         <View style={styles.footer}>
@@ -192,18 +168,6 @@ const styles = StyleSheet.create({
   daysText: {
     fontSize: 12,
     color: 'rgba(255,255,255,0.8)',
-  },
-  progressBarContainer: {
-    height: 8,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: 12,
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: '#ffffff',
-    borderRadius: 4,
   },
   footer: {
     flexDirection: 'row',

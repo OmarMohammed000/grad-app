@@ -185,6 +185,10 @@ export default function ChallengesScreen() {
     [loadChallenges, loadSummary]
   );
 
+  const handleViewHistory = useCallback(() => {
+    router.push('/challenge-history');
+  }, [router]);
+
   // Handle find challenge by code
   const handleFindByCode = useCallback(async () => {
     if (!inviteCode.trim()) {
@@ -289,6 +293,7 @@ export default function ChallengesScreen() {
             label="Completed This Month"
             value={summary.completedThisMonth}
             color="#06D6A0"
+            onPress={handleViewHistory}
           />
         </View>
 

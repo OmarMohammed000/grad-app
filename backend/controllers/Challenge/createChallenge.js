@@ -36,7 +36,7 @@ export default async function createChallenge(req, res) {
       return res.status(400).json({ message: 'Title is required' });
     }
 
-    if (!goalType || !['task_count', 'total_xp', 'habit_streak', 'custom'].includes(goalType)) {
+    if (!goalType || !['task_count', 'total_xp'].includes(goalType)) {
       await transaction.rollback();
       return res.status(400).json({ message: 'Valid goalType is required' });
     }

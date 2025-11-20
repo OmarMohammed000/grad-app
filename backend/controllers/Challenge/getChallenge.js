@@ -1,4 +1,5 @@
 import db from '../../models/index.js';
+import { finalizeChallengeIfNeeded } from '../../services/challengeStatusService.js';
 
 /**
  * Get single challenge by ID
@@ -56,6 +57,8 @@ export default async function getChallenge(req, res) {
     if (!challenge) {
       return res.status(404).json({ message: 'Challenge not found' });
     }
+
+    await finalizeChallengeIfNeeded(challenge);
 
     // Check if challenge is private and user is not a participant
     if (!challenge.isPublic) {

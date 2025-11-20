@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -8,19 +8,25 @@ interface ChallengeSummaryCardProps {
   label: string;
   value: number;
   color: string; // Purple or Green
+  onPress?: () => void;
 }
 
-export function ChallengeSummaryCard({ icon, label, value, color }: ChallengeSummaryCardProps) {
+export function ChallengeSummaryCard({ icon, label, value, color, onPress }: ChallengeSummaryCardProps) {
   const theme = useTheme();
 
+  const Container: any = onPress ? TouchableOpacity : View;
+
   return (
-    <View style={[styles.container, { backgroundColor: color }, theme.shadows.md]}>
+    <Container
+      style={[styles.container, { backgroundColor: color }, theme.shadows.md, onPress && styles.clickable]}
+      {...(onPress ? { onPress, activeOpacity: 0.85 } : {})}
+    >
       <View style={styles.iconContainer}>
         <Ionicons name={icon as any} size={24} color="#ffffff" />
       </View>
       <Text style={styles.value}>{value}</Text>
       <Text style={styles.label}>{label}</Text>
-    </View>
+    </Container>
   );
 }
 
@@ -54,6 +60,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
+  },
+  clickable: {
+    elevation: 2,
   },
 });
 

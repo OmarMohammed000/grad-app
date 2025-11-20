@@ -11,7 +11,7 @@ export interface Challenge {
   title: string;
   description?: string;
   challengeType: 'competitive' | 'collaborative';
-  goalType: 'task_count' | 'total_xp' | 'habit_streak' | 'custom';
+  goalType: 'task_count' | 'total_xp';
   goalTarget: number;
   goalDescription?: string;
   status: 'upcoming' | 'active' | 'completed' | 'cancelled';
@@ -140,7 +140,7 @@ export interface CreateChallengeData {
   title: string;
   description?: string;
   challengeType?: 'competitive' | 'collaborative';
-  goalType: 'task_count' | 'total_xp' | 'habit_streak' | 'custom';
+  goalType: 'task_count' | 'total_xp';
   goalTarget: number;
   goalDescription?: string;
   isPublic?: boolean;
@@ -694,7 +694,6 @@ export class ChallengeService {
     if (tags.includes('fitness') || tags.includes('workout')) return 'fitness';
     if (tags.includes('reading') || tags.includes('book')) return 'book';
     if (tags.includes('meditation') || tags.includes('mindfulness')) return 'leaf';
-    if (goalType === 'habit_streak') return 'flame';
     if (goalType === 'total_xp') return 'star';
     return 'trophy';
   }

@@ -322,6 +322,7 @@ export default function ChallengeDetailScreen() {
 
   const daysRemaining = ChallengeService.calculateDaysRemaining(challenge.endDate);
   const color = ChallengeService.getChallengeColor(challenge.difficultyLevel, challenge.challengeType);
+  const goalUnit = challenge.goalType === 'total_xp' ? 'XP' : 'tasks';
   const progressPercentage = progress
     ? parseFloat(progress.progressPercentage)
     : 0;
@@ -430,23 +431,23 @@ export default function ChallengeDetailScreen() {
               <View style={[styles.progressBar, { width: `${progressPercentage}%` }]} />
             </View>
             <Text style={[styles.progressText, { color: theme.colors.textSecondary }]}>
-              {progress.currentProgress} / {progress.goalTarget} ({progress.progressPercentage}%)
+              {progress.currentProgress} / {progress.goalTarget} {goalUnit} ({progress.progressPercentage}%)
             </Text>
             <View style={styles.statsGrid}>
               <View style={styles.statItem}>
                 <Text style={[styles.statValue, { color: theme.colors.text }]}>
-                  {progress.completedTasksCount}
+                  {challenge.goalType === 'total_xp' ? progress.totalXpEarned : progress.completedTasksCount}
                 </Text>
                 <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
-                  Tasks Done
+                  {challenge.goalType === 'total_xp' ? 'XP Earned' : 'Tasks Done'}
                 </Text>
               </View>
               <View style={styles.statItem}>
                 <Text style={[styles.statValue, { color: theme.colors.text }]}>
-                  {progress.totalXpEarned}
+                  {challenge.goalType === 'total_xp' ? progress.completedTasksCount : progress.totalXpEarned}
                 </Text>
                 <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
-                  XP Earned
+                  {challenge.goalType === 'total_xp' ? 'Tasks Done' : 'XP Earned'}
                 </Text>
               </View>
               <View style={styles.statItem}>

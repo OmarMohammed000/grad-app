@@ -27,13 +27,10 @@ const CHALLENGE_TYPES: Array<{ label: string; value: 'competitive' | 'collaborat
   { label: 'Collaborative', value: 'collaborative' },
 ];
 
-const GOAL_TYPES: Array<{ label: string; value: 'task_count' | 'total_xp' | 'habit_streak' | 'custom' }> = [
+const GOAL_TYPES: Array<{ label: string; value: 'task_count' | 'total_xp' }> = [
   { label: 'Task Count', value: 'task_count' },
   { label: 'Total XP', value: 'total_xp' },
-  { label: 'Habit Streak', value: 'habit_streak' },
-  { label: 'Custom Goal', value: 'custom' },
 ];
-
 const DIFFICULTY_LEVELS: Array<{ label: string; value: 'beginner' | 'intermediate' | 'advanced' | 'expert' }> = [
   { label: 'Beginner', value: 'beginner' },
   { label: 'Intermediate', value: 'intermediate' },
@@ -52,7 +49,7 @@ export function ChallengeFormModal({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [challengeType, setChallengeType] = useState<'competitive' | 'collaborative'>('competitive');
-  const [goalType, setGoalType] = useState<'task_count' | 'total_xp' | 'habit_streak' | 'custom'>('task_count');
+  const [goalType, setGoalType] = useState<'task_count' | 'total_xp'>('task_count');
   const [goalTarget, setGoalTarget] = useState('');
   const [goalDescription, setGoalDescription] = useState('');
   const [isPublic, setIsPublic] = useState(true);
@@ -122,10 +119,6 @@ export function ChallengeFormModal({
 
     if (!goalTarget || isNaN(Number(goalTarget)) || Number(goalTarget) < 1) {
       newErrors.goalTarget = 'Goal target must be at least 1';
-    }
-
-    if (goalType === 'custom' && !goalDescription.trim()) {
-      newErrors.goalDescription = 'Goal description is required for custom goals';
     }
 
     if (!startDate) {
@@ -346,19 +339,16 @@ export function ChallengeFormModal({
                 leftIcon="flag"
               />
 
-              {/* Goal Description (for custom goals) */}
-              {goalType === 'custom' && (
-                <Input
-                  label="Goal Description *"
-                  placeholder="Describe your custom goal"
-                  value={goalDescription}
-                  onChangeText={setGoalDescription}
-                  error={errors.goalDescription}
-                  multiline
-                  numberOfLines={2}
-                  leftIcon="bulb"
-                />
-              )}
+              {/* Goal Description (optional) */}
+              <Input
+                label="Goal Description"
+                placeholder="Describe the goal (optional)"
+                value={goalDescription}
+                onChangeText={setGoalDescription}
+                multiline
+                numberOfLines={2}
+                leftIcon="bulb"
+              />
 
               {/* Dates */}
               <View style={styles.dateRow}>

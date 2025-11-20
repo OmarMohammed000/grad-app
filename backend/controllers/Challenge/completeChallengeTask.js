@@ -1,5 +1,6 @@
 import db from '../../models/index.js';
 import { awardXP } from '../../services/xpService.js';
+import { finalizeChallengeIfNeeded } from '../../services/challengeStatusService.js';
 
 /**
  * Complete a challenge task
@@ -132,7 +133,14 @@ export default async function completeChallengeTask(req, res) {
     participant.completedTasksCount += 1;
     participant.totalPoints += task.pointValue;
     participant.totalXpEarned += task.xpReward;
-    participant.currentProgress += task.pointValue;
+
+    // Update currentProgress based on challenge goal type
+    if (challenge.goalType === 'total_xp') {
+      participant.currentProgress = participant.totalXpEarned;
+    } else {
+      // Default task_count
+      participant.currentProgress = participant.completedTasksCount;
+    }
     participant.lastActivityDate = new Date().toISOString().split('T')[0];
 
     // Update streak
@@ -147,7 +155,11 @@ export default async function completeChallengeTask(req, res) {
     }
 
     // Check if challenge is completed
-    if (participant.currentProgress >= challenge.goalTarget) {
+    const achievedGoal = challenge.goalType === 'total_xp'
+      ? participant.totalXpEarned >= challenge.goalTarget
+      : participant.completedTasksCount >= challenge.goalTarget;
+
+    if (achievedGoal) {
       participant.status = 'completed';
       participant.completedAt = new Date();
 
@@ -176,9 +188,17 @@ export default async function completeChallengeTask(req, res) {
 
     await participant.save({ transaction });
 
+    // Ensure challenge-level completion status is updated when appropriate
+    await finalizeChallengeIfNeeded(challenge, {
+      checkParticipants: true,
+      transaction
+    });
+
     // Update task completion count
     task.completionCount += 1;
     await task.save({ transaction });
+
+    const progressIncrement = challenge.goalType === 'total_xp' ? task.xpReward : 1;
 
     // Create daily progress entry
     const progressToday = await db.ChallengeProgress.findOne({
@@ -193,8 +213,9 @@ export default async function completeChallengeTask(req, res) {
       progressToday.tasksCompleted += 1;
       progressToday.xpEarned += task.xpReward;
       progressToday.pointsEarned += task.pointValue;
-      progressToday.progressValue += task.pointValue;
+      progressToday.progressValue += progressIncrement;
       progressToday.cumulativeProgress = participant.currentProgress;
+      progressToday.streakCount = participant.streakDays;
       await progressToday.save({ transaction });
     } else {
       await db.ChallengeProgress.create({
@@ -202,7 +223,7 @@ export default async function completeChallengeTask(req, res) {
         challengeId,
         userId: req.user.userId,
         date: today,
-        progressValue: task.pointValue,
+        progressValue: progressIncrement,
         tasksCompleted: 1,
         xpEarned: task.xpReward,
         pointsEarned: task.pointValue,

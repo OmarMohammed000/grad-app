@@ -34,7 +34,8 @@ export default (sequelize) => {
       comment: 'Whether participants compete or collaborate'
     },
     goalType: {
-      type: DataTypes.ENUM('task_count', 'total_xp', 'habit_streak', 'custom'),
+      // Currently only task_count and total_xp are supported.
+      type: DataTypes.ENUM('task_count', 'total_xp'),
       allowNull: false,
       comment: 'Type of goal for the challenge'
     },
