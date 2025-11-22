@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -10,6 +11,7 @@ interface HeaderProps {
 
 export function Header({ userName, userAvatar }: HeaderProps) {
   const theme = useTheme();
+  const router = useRouter();
   const [avatarError, setAvatarError] = useState(false);
   
   // Default avatar with first letter of username
@@ -54,7 +56,7 @@ export function Header({ userName, userAvatar }: HeaderProps) {
           
           <TouchableOpacity 
             style={styles.iconButton}
-            onPress={() => console.log('Settings pressed')}
+            onPress={() => router.push('/settings')}
           >
             <Ionicons name="settings-outline" size={24} color="#ffffff" />
           </TouchableOpacity>

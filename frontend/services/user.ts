@@ -7,6 +7,15 @@ export interface UserProfile {
   avatarUrl?: string;
   bio?: string;
   isPublicProfile?: boolean;
+  notificationsEnabled?: boolean;
+  emailNotifications?: boolean;
+  soundEnabled?: boolean;
+  firstName?: string;
+  lastName?: string;
+  dateOfBirth?: string;
+  timezone?: string;
+  language?: string;
+  theme?: 'light' | 'dark' | 'auto';
 }
 
 export interface Rank {
@@ -70,6 +79,9 @@ export class UserService {
     bio?: string;
     avatarUrl?: string;
     isPublicProfile?: boolean;
+    notificationsEnabled?: boolean;
+    emailNotifications?: boolean;
+    soundEnabled?: boolean;
   }): Promise<UserResponse> {
     try {
       const response = await api.put('/users/me', data);
