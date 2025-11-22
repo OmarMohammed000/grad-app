@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import UserService, { User } from '@/services/user';
 import { AuthService } from '@/services/auth';
+import { NotificationTestButton } from '@/components/notifications';
 
 export default function SettingsScreen() {
   const theme = useTheme();
@@ -236,6 +237,17 @@ export default function SettingsScreen() {
               thumbColor="#ffffff"
             />
           </View>
+        </View>
+
+        {/* Notification Testing Section */}
+        <View
+          style={[
+            styles.section,
+            { backgroundColor: theme.colors.card },
+            theme.shadows.sm,
+          ]}
+        >
+          <NotificationTestButton />
         </View>
 
         {/* App Settings Section */}

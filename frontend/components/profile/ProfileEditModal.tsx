@@ -43,7 +43,6 @@ export function ProfileEditModal({
   const [loading, setLoading] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState('');
   const [selectedImage, setSelectedImage] = useState<ImagePickerResult | null>(null);
   const [isPublicProfile, setIsPublicProfile] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -55,7 +54,6 @@ export function ProfileEditModal({
     if (user && visible) {
       setDisplayName(user.profile?.displayName || '');
       setBio(user.profile?.bio || '');
-      setAvatarUrl(user.profile?.avatarUrl || '');
       setSelectedImage(null); // Reset selected image when modal opens
       setIsPublicProfile(user.profile?.isPublicProfile ?? true);
       setNotificationsEnabled(user.profile?.notificationsEnabled ?? true);
@@ -78,15 +76,6 @@ export function ProfileEditModal({
 
   const handleImageSelected = (result: ImagePickerResult) => {
     setSelectedImage(result);
-    // Convert to data URI for storage (works but not ideal for large images)
-    // In production, you'd upload to a server/CDN and get a URL back
-    if (result.base64) {
-      const dataUri = `data:${result.type || 'image/jpeg'};base64,${result.base64}`;
-      setAvatarUrl(dataUri);
-    } else {
-      // Fallback to URI if base64 not available
-      setAvatarUrl(result.uri);
-    }
   };
 
   const handleSave = async () => {
@@ -96,12 +85,12 @@ export function ProfileEditModal({
 
     setLoading(true);
     try {
-      // Use selected image if available, otherwise use manual URL
+      // Convert selected image to data URI for storage
       const finalAvatarUrl = selectedImage
         ? (selectedImage.base64
             ? `data:${selectedImage.type || 'image/jpeg'};base64,${selectedImage.base64}`
             : selectedImage.uri)
-        : avatarUrl.trim() || undefined;
+        : user?.profile?.avatarUrl; // Keep existing if no new image selected
 
       await onSave({
         displayName: displayName.trim(),
@@ -175,14 +164,6 @@ export function ProfileEditModal({
                   onChangeText={setDisplayName}
                   error={errors.displayName}
                   leftIcon="person"
-                />
-
-                <Input
-                  label="Avatar URL (optional)"
-                  placeholder="Or enter image URL manually"
-                  value={avatarUrl}
-                  onChangeText={setAvatarUrl}
-                  leftIcon="link"
                 />
 
                 <Input
