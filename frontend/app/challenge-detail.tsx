@@ -25,13 +25,15 @@ import {
 } from '@/services/challenges';
 import { JoinChallengeModal, ChallengeTaskFormModal } from '@/components/challenges';
 import Toast from 'react-native-toast-message';
+import * as ImagePicker from 'expo-image-picker';
+import { uploadImage } from '@/services/api';
 
 export default function ChallengeDetailScreen() {
   const theme = useTheme();
   const router = useRouter();
   const navigation = useNavigation();
   const { id } = useLocalSearchParams<{ id: string }>();
-  
+
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [tasks, setTasks] = useState<ChallengeTask[]>([]);
   const [progress, setProgress] = useState<ChallengeStats | null>(null);
@@ -45,6 +47,7 @@ export default function ChallengeDetailScreen() {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [loadingInviteCode, setLoadingInviteCode] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   // Set navigation header title and styling to match custom header
   useLayoutEffect(() => {
@@ -55,10 +58,10 @@ export default function ChallengeDetailScreen() {
       headerTintColor: theme.colors.text,
       headerTitleAlign: 'left',
       headerBackTitleVisible: false,
-    
+
       headerTitle: () => (
         <View >
-          <Text 
+          <Text
             style={{
               fontSize: 20,
               fontWeight: 'bold',
@@ -78,16 +81,16 @@ export default function ChallengeDetailScreen() {
   // Load challenge details
   const loadChallenge = useCallback(async () => {
     if (!id) return;
-    
+
     try {
       const response = await ChallengeService.getChallenge(id);
       setChallenge(response.challenge);
       setTasks(response.challenge.challengeTasks || []);
-      
+
       // Load invite code if user is creator/moderator and challenge is private
-      if (!response.challenge.isPublic && 
-          (response.challenge.createdBy === response.challenge.userParticipation?.userId ||
-           response.challenge.userParticipation?.role === 'moderator')) {
+      if (!response.challenge.isPublic &&
+        (response.challenge.createdBy === response.challenge.userParticipation?.userId ||
+          response.challenge.userParticipation?.role === 'moderator')) {
         try {
           const inviteData = await ChallengeService.getInviteCode(id);
           setInviteCode(inviteData.inviteCode);
@@ -104,7 +107,7 @@ export default function ChallengeDetailScreen() {
   // Load progress if user has joined
   const loadProgress = useCallback(async () => {
     if (!id || !challenge?.hasJoined) return;
-    
+
     try {
       const response = await ChallengeService.getChallengeProgress(id);
       setProgress(response.stats);
@@ -116,7 +119,7 @@ export default function ChallengeDetailScreen() {
   // Load leaderboard if competitive
   const loadLeaderboard = useCallback(async () => {
     if (!id || challenge?.challengeType !== 'competitive') return;
-    
+
     try {
       const response = await ChallengeService.getChallengeLeaderboard(id);
       setLeaderboard(response.leaderboard);
@@ -174,13 +177,13 @@ export default function ChallengeDetailScreen() {
   // Handle join challenge
   const handleJoin = useCallback(async () => {
     if (!id || joinLoading) return;
-    
+
     // Show modal for private challenges
     if (challenge && !challenge.isPublic) {
       setShowJoinModal(true);
       return;
     }
-    
+
     setJoinLoading(true);
     try {
       await ChallengeService.joinChallenge(id);
@@ -205,7 +208,7 @@ export default function ChallengeDetailScreen() {
   // Handle leave challenge
   const handleLeave = useCallback(async () => {
     if (!id) return;
-    
+
     try {
       await ChallengeService.leaveChallenge(id);
       router.back();
@@ -216,18 +219,79 @@ export default function ChallengeDetailScreen() {
 
   // Handle complete task
   const handleCompleteTask = useCallback(async (taskId: string) => {
-    if (!id || completeTaskLoading) return;
-    
+    console.log('🎯 Complete task button clicked for task:', taskId);
+    console.log('🎯 Current state:', { id, completeTaskLoading, uploading });
+
+    if (!id || completeTaskLoading || uploading) {
+      console.log('⚠️  Blocked from completing - early return');
+      return;
+    }
+
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) {
+      console.log('❌ Task not found:', taskId);
+      return;
+    }
+
+    console.log('📋 Task found:', {
+      title: task.title,
+      requiresProof: task.requiresProof
+    });
+
+    let proofImageUrl: string | undefined = undefined;
+
+    if (task.requiresProof) {
+      console.log('📸 Task requires proof - launching camera...');
+      // Request permission
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      console.log('📸 Camera permission status:', status);
+
+      if (status !== 'granted') {
+        console.log('❌ Camera permission denied');
+        Alert.alert('Permission needed', 'Camera permission is required to verify this task.');
+        return;
+      }
+
+      // Launch camera
+      console.log('📸 Opening camera...');
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.7,
+      });
+
+      console.log('📸 Camera result:', result.canceled ? 'CANCELED' : 'PHOTO TAKEN');
+
+      if (result.canceled) return;
+
+      console.log('📤 Starting upload process...');
+      setUploading(true);
+      try {
+        proofImageUrl = await uploadImage(result.assets[0].uri);
+        console.log('✅ Upload successful! URL:', proofImageUrl);
+      } catch (error) {
+        console.error('❌ Upload failed:', error);
+        Alert.alert('Upload Failed', 'Failed to upload proof image. Please try again.');
+        setUploading(false);
+        return;
+      } finally {
+        setUploading(false);
+      }
+    }
+
+    console.log('🚀 Completing task with proofImageUrl:', proofImageUrl);
     setCompleteTaskLoading(taskId);
     try {
-      await ChallengeService.completeChallengeTask(id, taskId);
+      await ChallengeService.completeChallengeTask(id, taskId, { proofImageUrl });
+      console.log('✅ Task completed successfully');
       await Promise.all([loadChallenge(), loadProgress(), loadLeaderboard()]);
     } catch (error) {
+      console.error('❌ Task completion failed:', error);
       // Error handled by service
     } finally {
       setCompleteTaskLoading(null);
     }
-  }, [id, completeTaskLoading, loadChallenge, loadProgress, loadLeaderboard]);
+  }, [id, completeTaskLoading, uploading, tasks, loadChallenge, loadProgress, loadLeaderboard]);
 
   // Handle add task
   const handleAddTask = useCallback(() => {
@@ -253,7 +317,7 @@ export default function ChallengeDetailScreen() {
   // Handle copy invite code
   const handleCopyInviteCode = useCallback(async () => {
     if (!inviteCode) return;
-    
+
     try {
       await Clipboard.setString(inviteCode);
       Toast.show({
@@ -273,7 +337,7 @@ export default function ChallengeDetailScreen() {
   // Handle regenerate invite code
   const handleRegenerateInviteCode = useCallback(async () => {
     if (!id) return;
-    
+
     Alert.alert(
       'Regenerate Invite Code',
       'Are you sure you want to regenerate the invite code? The old code will no longer work.',
@@ -344,48 +408,48 @@ export default function ChallengeDetailScreen() {
           )}
 
           {/* Invite Code Section (for private challenges, creators/moderators only) */}
-          {!challenge.isPublic && inviteCode && 
-           (challenge.createdBy === challenge.userParticipation?.userId ||
-            challenge.userParticipation?.role === 'moderator') && (
-            <View style={[styles.inviteCodeSection, { backgroundColor: theme.colors.primary + '15', borderColor: theme.colors.primary + '40' }]}>
-              <View style={styles.inviteCodeHeader}>
-                <Ionicons name="key-outline" size={20} color={theme.colors.primary} />
-                <Text style={[styles.inviteCodeLabel, { color: theme.colors.primary }]}>
-                  Invite Code
-                </Text>
-              </View>
-              <View style={styles.inviteCodeRow}>
-                <Text style={[styles.inviteCodeText, { color: theme.colors.text }]} selectable>
-                  {inviteCode}
-                </Text>
-                <View style={styles.inviteCodeActions}>
-                  <TouchableOpacity
-                    style={[styles.inviteCodeButton, { backgroundColor: theme.colors.primary }]}
-                    onPress={handleCopyInviteCode}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="copy-outline" size={18} color="#ffffff" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.inviteCodeButton, { backgroundColor: theme.colors.backgroundSecondary }]}
-                    onPress={handleRegenerateInviteCode}
-                    disabled={loadingInviteCode}
-                    activeOpacity={0.7}
-                  >
-                    {loadingInviteCode ? (
-                      <ActivityIndicator size="small" color={theme.colors.text} />
-                    ) : (
-                      <Ionicons name="refresh-outline" size={18} color={theme.colors.text} />
-                    )}
-                  </TouchableOpacity>
+          {!challenge.isPublic && inviteCode &&
+            (challenge.createdBy === challenge.userParticipation?.userId ||
+              challenge.userParticipation?.role === 'moderator') && (
+              <View style={[styles.inviteCodeSection, { backgroundColor: theme.colors.primary + '15', borderColor: theme.colors.primary + '40' }]}>
+                <View style={styles.inviteCodeHeader}>
+                  <Ionicons name="key-outline" size={20} color={theme.colors.primary} />
+                  <Text style={[styles.inviteCodeLabel, { color: theme.colors.primary }]}>
+                    Invite Code
+                  </Text>
                 </View>
+                <View style={styles.inviteCodeRow}>
+                  <Text style={[styles.inviteCodeText, { color: theme.colors.text }]} selectable>
+                    {inviteCode}
+                  </Text>
+                  <View style={styles.inviteCodeActions}>
+                    <TouchableOpacity
+                      style={[styles.inviteCodeButton, { backgroundColor: theme.colors.primary }]}
+                      onPress={handleCopyInviteCode}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="copy-outline" size={18} color="#ffffff" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.inviteCodeButton, { backgroundColor: theme.colors.backgroundSecondary }]}
+                      onPress={handleRegenerateInviteCode}
+                      disabled={loadingInviteCode}
+                      activeOpacity={0.7}
+                    >
+                      {loadingInviteCode ? (
+                        <ActivityIndicator size="small" color={theme.colors.text} />
+                      ) : (
+                        <Ionicons name="refresh-outline" size={18} color={theme.colors.text} />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                <Text style={[styles.inviteCodeHint, { color: theme.colors.textSecondary }]}>
+                  Share this code with others to invite them to your private challenge
+                </Text>
               </View>
-              <Text style={[styles.inviteCodeHint, { color: theme.colors.textSecondary }]}>
-                Share this code with others to invite them to your private challenge
-              </Text>
-            </View>
-          )}
-          
+            )}
+
           <View style={styles.challengeInfoRow}>
             <View style={styles.challengeInfoBadges}>
               <View style={[styles.challengeInfoBadge, { backgroundColor: color + '20', borderColor: color + '40' }]}>
@@ -404,7 +468,7 @@ export default function ChallengeDetailScreen() {
                 </Text>
               </View>
             </View>
-            
+
             <View style={styles.challengeInfoStats}>
               <View style={styles.challengeInfoStatItem}>
                 <Ionicons name="calendar-outline" size={16} color={theme.colors.textSecondary} />
@@ -482,59 +546,70 @@ export default function ChallengeDetailScreen() {
                   {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
                 </Text>
               )}
-              {/* Add Task Button (only for creators/moderators) */}
-              {challenge.userParticipation && 
-               (challenge.userParticipation.role === 'moderator' || challenge.createdBy === challenge.userParticipation.userId) && (
-                <TouchableOpacity
-                  style={[styles.addTaskButton, { backgroundColor: theme.colors.primary }]}
-                  onPress={handleAddTask}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="add" size={20} color="#ffffff" />
-                  <Text style={styles.addTaskButtonText}>Add Task</Text>
-                </TouchableOpacity>
-              )}
+              {/* Creator/Moderator Actions */}
+              {challenge.userParticipation &&
+                (challenge.userParticipation.role === 'moderator' || challenge.createdBy === challenge.userParticipation.userId) && (
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {/* Verification Queue Button */}
+                    {(challenge.verificationType === 'manual' || challenge.verificationType === 'ai') && (
+                      <TouchableOpacity
+                        style={[styles.addTaskButton, { backgroundColor: theme.colors.warning }]}
+                        onPress={() => router.push({
+                          pathname: '/verification-queue',
+                          params: { challengeId: challenge.id }
+                        })}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="shield-checkmark" size={20} color="#ffffff" />
+                      </TouchableOpacity>
+                    )}
+
+                    {/* Add Task Button */}
+                    <TouchableOpacity
+                      style={[styles.addTaskButton, { backgroundColor: theme.colors.primary }]}
+                      onPress={handleAddTask}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="add" size={20} color="#ffffff" />
+                      <Text style={styles.addTaskButtonText}>Add Task</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
             </View>
           </View>
-          
+
           {tasks.length === 0 ? (
             <View style={styles.emptyTaskContainer}>
               <Ionicons name="checkmark-circle-outline" size={48} color={theme.colors.textSecondary} />
               <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
                 No tasks available yet
               </Text>
-              {challenge.userParticipation && 
-               (challenge.userParticipation.role === 'moderator' || challenge.createdBy === challenge.userParticipation.userId) && (
-                <Text style={[styles.emptySubtext, { color: theme.colors.textSecondary }]}>
-                  Add tasks to get started
-                </Text>
-              )}
+              {challenge.userParticipation &&
+                (challenge.userParticipation.role === 'moderator' || challenge.createdBy === challenge.userParticipation.userId) && (
+                  <Text style={[styles.emptySubtext, { color: theme.colors.textSecondary }]}>
+                    Add tasks to get started
+                  </Text>
+                )}
             </View>
           ) : (
             tasks.map((task, index) => {
-              const taskTypeColor = task.taskType === 'required' 
-                ? theme.colors.primary 
-                : task.taskType === 'bonus' 
-                ? theme.colors.warning 
-                : theme.colors.textSecondary;
-              
-              const difficultyColor = task.difficulty === 'easy' 
-                ? '#10B981' 
-                : task.difficulty === 'medium' 
-                ? '#3B82F6' 
-                : task.difficulty === 'hard' 
-                ? '#F59E0B' 
-                : '#D946EF';
+              const completion = progress?.recentCompletions?.find(c => c.challengeTaskId === task.id);
+              const isCompleted = !!completion && completion.status === 'approved';
+              const isPending = !!completion && completion.status === 'pending';
+              const isRejected = !!completion && completion.status === 'rejected';
+
+              const taskTypeColor = ChallengeService.getTaskTypeColor(task.taskType);
+              const difficultyColor = ChallengeService.getDifficultyColor(task.difficulty);
 
               return (
                 <View
                   key={task.id}
                   style={[
                     styles.taskCard,
-                    { 
+                    {
                       backgroundColor: theme.colors.card,
                       borderLeftWidth: 4,
-                      borderLeftColor: taskTypeColor,
+                      borderLeftColor: isCompleted ? theme.colors.success : (isPending ? theme.colors.warning : (isRejected ? theme.colors.danger : taskTypeColor)),
                     },
                     theme.shadows.md,
                     index === tasks.length - 1 && styles.lastTaskItem,
@@ -547,9 +622,9 @@ export default function ChallengeDetailScreen() {
                         {task.title}
                       </Text>
                       <View style={styles.taskCardBadges}>
-                        <View 
+                        <View
                           style={[
-                            styles.taskCardBadge, 
+                            styles.taskCardBadge,
                             { backgroundColor: taskTypeColor + '20', borderColor: taskTypeColor + '40' }
                           ]}
                         >
@@ -557,9 +632,9 @@ export default function ChallengeDetailScreen() {
                             {task.taskType}
                           </Text>
                         </View>
-                        <View 
+                        <View
                           style={[
-                            styles.taskCardBadge, 
+                            styles.taskCardBadge,
                             { backgroundColor: difficultyColor + '20', borderColor: difficultyColor + '40' }
                           ]}
                         >
@@ -567,13 +642,35 @@ export default function ChallengeDetailScreen() {
                             {task.difficulty}
                           </Text>
                         </View>
+                        {isPending && (
+                          <View style={[styles.taskCardBadge, { backgroundColor: theme.colors.warning + '20', borderColor: theme.colors.warning + '40' }]}>
+                            <Text style={[styles.taskCardBadgeText, { color: theme.colors.warning }]}>Pending</Text>
+                          </View>
+                        )}
+                        {isRejected && (
+                          <View style={[styles.taskCardBadge, { backgroundColor: theme.colors.danger + '20', borderColor: theme.colors.danger + '40' }]}>
+                            <Text style={[styles.taskCardBadgeText, { color: theme.colors.danger }]}>Rejected</Text>
+                          </View>
+                        )}
+                        {isCompleted && (
+                          <View style={[styles.taskCardBadge, { backgroundColor: theme.colors.success + '20', borderColor: theme.colors.success + '40' }]}>
+                            <Text style={[styles.taskCardBadgeText, { color: theme.colors.success }]}>Completed</Text>
+                          </View>
+                        )}
                       </View>
                     </View>
-                    
+
                     {task.description && (
                       <Text style={[styles.taskCardDescription, { color: theme.colors.textSecondary }]}>
                         {task.description}
                       </Text>
+                    )}
+
+                    {isRejected && completion?.rejectionReason && (
+                      <View style={[styles.rejectionBox, { backgroundColor: theme.colors.danger + '10', borderColor: theme.colors.danger + '30' }]}>
+                        <Text style={[styles.rejectionTitle, { color: theme.colors.danger }]}>Rejection Reason:</Text>
+                        <Text style={[styles.rejectionText, { color: theme.colors.text }]}>{completion.rejectionReason}</Text>
+                      </View>
                     )}
 
                     {/* Task Meta Info */}
@@ -586,15 +683,14 @@ export default function ChallengeDetailScreen() {
                           </Text>
                         </View>
                       )}
-                      {/* TODO: Verification system not yet implemented */}
-                      {/* {task.requiresProof && (
+                      {task.requiresProof && (
                         <View style={[styles.taskCardMetaItem, { backgroundColor: theme.colors.warning + '15' }]}>
                           <Ionicons name="shield-checkmark" size={14} color={theme.colors.warning} />
                           <Text style={[styles.taskCardMetaText, { color: theme.colors.warning }]}>
                             Proof Required
                           </Text>
                         </View>
-                      )} */}
+                      )}
                     </View>
                   </View>
 
@@ -622,20 +718,35 @@ export default function ChallengeDetailScreen() {
                         </View>
                       )}
                     </View>
-                    
+
                     {challenge.hasJoined && (
                       <TouchableOpacity
                         style={[
                           styles.taskCardCompleteButton,
-                          { backgroundColor: theme.colors.success },
-                          completeTaskLoading === task.id && styles.completeButtonDisabled,
+                          { backgroundColor: isCompleted ? theme.colors.card : (isPending ? theme.colors.warning : (isRejected ? theme.colors.danger : theme.colors.success)) },
+                          (completeTaskLoading === task.id || isCompleted || isPending) && styles.completeButtonDisabled,
                         ]}
                         onPress={() => handleCompleteTask(task.id)}
-                        disabled={completeTaskLoading === task.id}
+                        disabled={completeTaskLoading === task.id || isCompleted || isPending}
                         activeOpacity={0.8}
                       >
                         {completeTaskLoading === task.id ? (
                           <ActivityIndicator size="small" color="#ffffff" />
+                        ) : isCompleted ? (
+                          <>
+                            <Ionicons name="checkmark-circle" size={18} color={theme.colors.textSecondary} />
+                            <Text style={[styles.taskCardCompleteButtonText, { color: theme.colors.textSecondary }]}>Done</Text>
+                          </>
+                        ) : isPending ? (
+                          <>
+                            <Ionicons name="time" size={18} color="#ffffff" />
+                            <Text style={styles.taskCardCompleteButtonText}>Pending</Text>
+                          </>
+                        ) : isRejected ? (
+                          <>
+                            <Ionicons name="refresh" size={18} color="#ffffff" />
+                            <Text style={styles.taskCardCompleteButtonText}>Retry</Text>
+                          </>
                         ) : (
                           <>
                             <Ionicons name="checkmark-circle" size={18} color="#ffffff" />
@@ -1050,6 +1161,20 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  rejectionBox: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  rejectionTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  rejectionText: {
+    fontSize: 14,
   },
   emptyText: {
     fontSize: 16,

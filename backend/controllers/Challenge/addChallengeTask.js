@@ -20,8 +20,8 @@ export default async function addChallengeTask(req, res) {
       maxCompletions,
       orderIndex = 0,
       tags = [],
-      // requiresProof = false, // TODO: Verification system not yet implemented
-      // proofInstructions, // TODO: Verification system not yet implemented
+      requiresProof = false,
+      proofInstructions,
       estimatedDuration,
       availableFrom,
       availableUntil,
@@ -73,8 +73,8 @@ export default async function addChallengeTask(req, res) {
       maxCompletions: isRepeatable ? maxCompletions : null,
       orderIndex,
       tags,
-      // requiresProof, // TODO: Verification system not yet implemented
-      // proofInstructions, // TODO: Verification system not yet implemented
+      requiresProof,
+      proofInstructions,
       estimatedDuration,
       availableFrom,
       availableUntil,

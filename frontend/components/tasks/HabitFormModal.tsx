@@ -290,6 +290,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
+    position: "absolute",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '90%',

@@ -60,7 +60,7 @@ export function ChallengeFormModal({
   const [tags, setTags] = useState('');
   const [rules, setRules] = useState('');
   const [prizeDescription, setPrizeDescription] = useState('');
-  // const [requiresVerification, setRequiresVerification] = useState(false); // TODO: Verification system not yet implemented
+  const [verificationType, setVerificationType] = useState<'none' | 'manual' | 'ai'>('none');
   const [isTeamBased, setIsTeamBased] = useState(false);
   const [teamSize, setTeamSize] = useState('');
   const [difficultyLevel, setDifficultyLevel] = useState<'beginner' | 'intermediate' | 'advanced' | 'expert'>('intermediate');
@@ -82,9 +82,7 @@ export function ChallengeFormModal({
       setTags(challenge.tags?.join(', ') || '');
       setRules(challenge.rules || '');
       setPrizeDescription(challenge.prizeDescription || '');
-      // setRequiresVerification(challenge.requiresVerification || false); // TODO: Verification system not yet implemented
-      setIsTeamBased(challenge.isTeamBased || false);
-      setTeamSize(challenge.teamSize ? String(challenge.teamSize) : '');
+      setVerificationType(challenge.verificationType || 'none');
       setDifficultyLevel(challenge.difficultyLevel || 'intermediate');
     } else {
       // Reset form for new challenge
@@ -102,9 +100,7 @@ export function ChallengeFormModal({
       setTags('');
       setRules('');
       setPrizeDescription('');
-      // setRequiresVerification(false); // TODO: Verification system not yet implemented
-      setIsTeamBased(false);
-      setTeamSize('');
+      setVerificationType('none');
       setDifficultyLevel('intermediate');
     }
     setErrors({});
@@ -173,7 +169,7 @@ export function ChallengeFormModal({
         tags: tagsArray.length > 0 ? tagsArray : undefined,
         rules: rules.trim() || undefined,
         prizeDescription: prizeDescription.trim() || undefined,
-        // requiresVerification, // TODO: Verification system not yet implemented
+        verificationType,
         isTeamBased,
         teamSize: isTeamBased ? Number(teamSize) : undefined,
         difficultyLevel,
@@ -340,15 +336,15 @@ export function ChallengeFormModal({
               />
 
               {/* Goal Description (optional) */}
-                <Input
+              <Input
                 label="Goal Description"
                 placeholder="Describe the goal (optional)"
-                  value={goalDescription}
-                  onChangeText={setGoalDescription}
-                  multiline
-                  numberOfLines={2}
-                  leftIcon="bulb"
-                />
+                value={goalDescription}
+                onChangeText={setGoalDescription}
+                multiline
+                numberOfLines={2}
+                leftIcon="bulb"
+              />
 
               {/* Dates */}
               <View style={styles.dateRow}>
@@ -439,22 +435,60 @@ export function ChallengeFormModal({
                   />
                 </View>
 
-                {/* TODO: Verification system not yet implemented */}
-                {/* Requires Verification Toggle */}
-                {/* <View style={styles.switchRow}>
-                  <View style={styles.switchLabelContainer}>
-                    <Ionicons name="shield-checkmark-outline" size={20} color={theme.colors.text} />
-                    <Text style={[styles.switchLabel, { color: theme.colors.text }]}>
-                      Requires Verification
-                    </Text>
+
+                {/* Verification Type Selection */}
+                <View style={styles.section}>
+                  <Text style={[styles.sectionLabel, { color: theme.colors.text }]}>
+                    Verification Method
+                  </Text>
+                  <View style={styles.optionsContainer}>
+                    {[
+                      { label: 'None', value: 'none' as const, icon: 'close-circle-outline' as const },
+                      { label: 'Manual Review', value: 'manual' as const, icon: 'person-outline' as const },
+                      { label: 'AI Verification', value: 'ai' as const, icon: 'sparkles-outline' as const }
+                    ].map((item) => (
+                      <TouchableOpacity
+                        key={item.value}
+                        style={[
+                          styles.option,
+                          {
+                            backgroundColor:
+                              verificationType === item.value
+                                ? theme.colors.primary
+                                : theme.colors.card,
+                            borderColor:
+                              verificationType === item.value
+                                ? theme.colors.primary
+                                : theme.colors.border,
+                          },
+                          theme.shadows.sm,
+                        ]}
+                        onPress={() => setVerificationType(item.value)}
+                      >
+                        <Ionicons
+                          name={item.icon}
+                          size={20}
+                          color={verificationType === item.value ? '#ffffff' : theme.colors.text}
+                          style={{ marginRight: 6 }}
+                        />
+                        <Text
+                          style={[
+                            styles.optionText,
+                            {
+                              color:
+                                verificationType === item.value
+                                  ? '#ffffff'
+                                  : theme.colors.text,
+                            },
+                          ]}
+                        >
+                          {item.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
                   </View>
-                  <Switch
-                    value={requiresVerification}
-                    onValueChange={setRequiresVerification}
-                    trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-                    thumbColor="#ffffff"
-                  />
-                </View> */}
+                </View>
+
 
                 {/* Team Based Toggle */}
                 <View style={styles.switchRow}>
@@ -567,6 +601,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '90%',

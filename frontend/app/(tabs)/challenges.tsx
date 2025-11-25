@@ -81,6 +81,13 @@ export default function ChallengesScreen() {
         limit: 50,
       };
 
+      if (activeTab === 'global') {
+        params.isGlobal = true;
+      } else if (activeTab === 'group') {
+        params.isPublic = true;
+        params.isGlobal = false; // Exclude global challenges from "Group" tab
+      }
+
       // Don't send status parameter - backend defaults to showing 'upcoming' and 'active'
       // when status is not provided. For 'my' challenges, we want all statuses anyway.
 
@@ -341,7 +348,7 @@ export default function ChallengesScreen() {
               )}
             </TouchableOpacity>
           </View>
-          
+
           {foundChallenge && (
             <View style={[styles.foundChallengeCard, { backgroundColor: theme.colors.primary + '15', borderColor: theme.colors.primary + '40' }]}>
               <View style={styles.foundChallengeHeader}>

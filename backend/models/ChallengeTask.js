@@ -88,18 +88,17 @@ export default (sequelize) => {
       defaultValue: [],
       comment: 'Task categorization tags'
     },
-    // TODO: Verification system not yet implemented
-    // requiresProof: {
-    //   type: DataTypes.BOOLEAN,
-    //   allowNull: false,
-    //   defaultValue: false,
-    //   comment: 'Whether completion requires proof'
-    // },
-    // proofInstructions: {
-    //   type: DataTypes.TEXT,
-    //   allowNull: true,
-    //   comment: 'Instructions for providing proof'
-    // },
+    requiresProof: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      comment: 'Whether completion requires proof'
+    },
+    proofInstructions: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: 'Instructions for providing proof'
+    },
     estimatedDuration: {
       type: DataTypes.INTEGER,
       allowNull: true,

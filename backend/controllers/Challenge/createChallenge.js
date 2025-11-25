@@ -17,6 +17,7 @@ export default async function createChallenge(req, res) {
       goalTarget,
       goalDescription,
       isPublic = true,
+      isGlobal = false,
       maxParticipants,
       xpReward = 0,
       startDate,
@@ -24,9 +25,7 @@ export default async function createChallenge(req, res) {
       tags = [],
       rules,
       prizeDescription,
-      // requiresVerification = false, // TODO: Verification system not yet implemented
-      isTeamBased = false,
-      teamSize,
+      verificationType = 'none',
       difficultyLevel = 'intermediate'
     } = req.body;
 
@@ -34,6 +33,12 @@ export default async function createChallenge(req, res) {
     if (!title?.trim()) {
       await transaction.rollback();
       return res.status(400).json({ message: 'Title is required' });
+    }
+
+    // Check admin role for global challenges
+    if (isGlobal && req.user.role !== 'admin') {
+      await transaction.rollback();
+      return res.status(403).json({ message: 'Only admins can create global challenges' });
     }
 
     if (!goalType || !['task_count', 'total_xp'].includes(goalType)) {
@@ -59,8 +64,8 @@ export default async function createChallenge(req, res) {
       return res.status(400).json({ message: 'End date must be after start date' });
     }
 
-    // Generate invite code for private challenges
-    const inviteCode = !isPublic ? crypto.randomBytes(8).toString('hex') : null;
+    // Generate invite code for private challenges (not needed for global)
+    const inviteCode = (!isPublic && !isGlobal) ? crypto.randomBytes(8).toString('hex') : null;
 
     // Determine initial status
     const now = new Date();
@@ -80,6 +85,7 @@ export default async function createChallenge(req, res) {
       goalDescription,
       status,
       isPublic,
+      isGlobal,
       inviteCode,
       maxParticipants,
       currentParticipants: 1, // Creator is first participant
@@ -89,9 +95,7 @@ export default async function createChallenge(req, res) {
       tags,
       rules,
       prizeDescription,
-      // requiresVerification, // TODO: Verification system not yet implemented
-      isTeamBased,
-      teamSize,
+      verificationType,
       difficultyLevel
     }, { transaction });
 

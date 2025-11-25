@@ -13,6 +13,7 @@ export default async function getChallenges(req, res) {
       challengeType,
       difficultyLevel,
       isPublic,
+      isGlobal,
       tags,
       search,
       myChallenges = false,
@@ -55,13 +56,30 @@ export default async function getChallenges(req, res) {
       where.difficultyLevel = difficultyLevel;
     }
 
+    // Global filter
+    if (isGlobal !== undefined) {
+      where.isGlobal = isGlobal === 'true';
+    }
+
     // Public filter
     if (isPublic !== undefined) {
       where.isPublic = isPublic === 'true';
     } else {
       // Default: show public challenges OR challenges user created/joined
+      // If asking for global challenges, we usually want public ones unless specified
       if (myChallenges !== 'true') {
         where.isPublic = true;
+        
+        // If not explicitly asking for global, default to non-global for "Group" tab behavior
+        // But if isGlobal is not passed, we might want to show both? 
+        // Actually, usually the frontend will request either global=true or global=false (for groups)
+        if (isGlobal === undefined) {
+           // If nothing specified, maybe show all? Or default to groups?
+           // Let's keep it simple: if isGlobal is not specified, we don't filter by it, 
+           // but we respect isPublic=true.
+           // However, for "Group Challenges" tab, we probably want isGlobal=false.
+           // The frontend should send isGlobal=false for Group tab.
+        }
       }
     }
 

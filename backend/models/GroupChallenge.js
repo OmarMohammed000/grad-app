@@ -122,26 +122,17 @@ export default (sequelize) => {
       allowNull: true,
       comment: 'Description of prizes/rewards'
     },
-    // TODO: Verification system not yet implemented
-    // requiresVerification: {
-    //   type: DataTypes.BOOLEAN,
-    //   allowNull: false,
-    //   defaultValue: false,
-    //   comment: 'Whether task completions need verification'
-    // },
-    isTeamBased: {
+    isGlobal: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: false,
-      comment: 'Whether participants form teams'
+      comment: 'Whether this is a system-wide global challenge'
     },
-    teamSize: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      validate: {
-        min: 2
-      },
-      comment: 'Size of teams if team-based'
+    verificationType: {
+      type: DataTypes.ENUM('none', 'manual', 'ai'),
+      allowNull: false,
+      defaultValue: 'none',
+      comment: 'Type of verification required for tasks'
     },
     difficultyLevel: {
       type: DataTypes.ENUM('beginner', 'intermediate', 'advanced', 'expert'),
@@ -169,6 +160,10 @@ export default (sequelize) => {
       {
         name: 'idx_group_challenges_is_public',
         fields: ['isPublic']
+      },
+      {
+        name: 'idx_group_challenges_is_global',
+        fields: ['isGlobal']
       },
       {
         name: 'idx_group_challenges_start_date',

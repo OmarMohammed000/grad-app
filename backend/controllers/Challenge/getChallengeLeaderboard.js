@@ -9,18 +9,31 @@ export default async function getChallengeLeaderboard(req, res) {
     const { id } = req.params;
     const { limit = 50, offset = 0 } = req.query;
 
-    const challenge = await db.GroupChallenge.findByPk(id);
+    const challenge = await db.GroupChallenge.findByPk(id, {
+      attributes: ['id', 'title', 'goalTarget', 'goalType', 'status']
+    });
 
     if (!challenge) {
       return res.status(404).json({ message: 'Challenge not found' });
     }
 
     // Get participants ordered by rank
+    // Optimized: Only select necessary fields
     const participants = await db.ChallengeParticipant.findAll({
       where: {
         challengeId: id,
         status: { [db.Sequelize.Op.in]: ['active', 'completed'] }
       },
+      attributes: [
+        'userId', 
+        'totalPoints', 
+        'currentProgress', 
+        'completedTasksCount', 
+        'totalXpEarned', 
+        'streakDays', 
+        'status', 
+        'badges'
+      ],
       include: [
         {
           model: db.User,
@@ -61,44 +74,73 @@ export default async function getChallengeLeaderboard(req, res) {
 
     // Get current user's rank
     let userRank = null;
-    const userParticipant = participants.find(p => p.userId === req.user.userId);
     
-    if (!userParticipant) {
-      // User not in current page, find their rank
-      const higherRanked = await db.ChallengeParticipant.count({
+    // Check if user is in the current page
+    const userEntry = leaderboard.find(entry => entry.userId === req.user.userId);
+    
+    if (userEntry) {
+      userRank = userEntry;
+    } else {
+      // User not in current page, fetch their specific data
+      const userParticipant = await db.ChallengeParticipant.findOne({
         where: {
           challengeId: id,
-          status: { [db.Sequelize.Op.in]: ['active', 'completed'] },
-          [db.Sequelize.Op.or]: [
-            { totalPoints: { [db.Sequelize.Op.gt]: userParticipant?.totalPoints || 0 } },
-            {
-              totalPoints: userParticipant?.totalPoints || 0,
-              completedTasksCount: { [db.Sequelize.Op.gt]: userParticipant?.completedTasksCount || 0 }
-            }
-          ]
-        }
+          userId: req.user.userId
+        },
+        attributes: [
+          'userId', 
+          'totalPoints', 
+          'currentProgress', 
+          'completedTasksCount', 
+          'totalXpEarned', 
+          'streakDays', 
+          'status', 
+          'badges'
+        ]
       });
 
-      if (userParticipant) {
+      if (userParticipant && (userParticipant.status === 'active' || userParticipant.status === 'completed')) {
+        // Calculate rank efficiently
+        const higherRankedCount = await db.ChallengeParticipant.count({
+          where: {
+            challengeId: id,
+            status: { [db.Sequelize.Op.in]: ['active', 'completed'] },
+            [db.Sequelize.Op.or]: [
+              { totalPoints: { [db.Sequelize.Op.gt]: userParticipant.totalPoints } },
+              {
+                totalPoints: userParticipant.totalPoints,
+                completedTasksCount: { [db.Sequelize.Op.gt]: userParticipant.completedTasksCount }
+              }
+            ]
+          }
+        });
+
+        // Fetch user profile for display
+        const userProfile = await db.UserProfile.findOne({
+          where: { userId: req.user.userId },
+          attributes: ['displayName', 'avatarUrl']
+        });
+
         userRank = {
-          rank: higherRanked + 1,
-          ...userParticipant.toJSON()
+          rank: higherRankedCount + 1,
+          userId: userParticipant.userId,
+          displayName: userProfile?.displayName || 'You',
+          avatarUrl: userProfile?.avatarUrl,
+          totalPoints: userParticipant.totalPoints,
+          currentProgress: userParticipant.currentProgress,
+          completedTasksCount: userParticipant.completedTasksCount,
+          totalXpEarned: userParticipant.totalXpEarned,
+          streakDays: userParticipant.streakDays,
+          status: userParticipant.status,
+          badges: userParticipant.badges
         };
       }
-    } else {
-      userRank = leaderboard.find(entry => entry.userId === req.user.userId);
     }
 
     return res.json({
       leaderboard,
       userRank,
-      challenge: {
-        id: challenge.id,
-        title: challenge.title,
-        goalTarget: challenge.goalTarget,
-        goalType: challenge.goalType,
-        status: challenge.status
-      },
+      challenge, // Already selected specific attributes above
       total: await db.ChallengeParticipant.count({
         where: {
           challengeId: id,

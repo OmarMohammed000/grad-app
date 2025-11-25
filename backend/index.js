@@ -3,6 +3,9 @@ import http from 'http';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
 import authRoutes from './route/Auth.js';
 import userRoutes from './route/User.js';
 import adminRoutes from './route/Admin.js';
@@ -10,9 +13,13 @@ import taskRoutes from './route/Task.js';
 import habitRoutes from './route/Habit.js';
 import leaderboardRoutes from './route/leaderboard.js';
 import challengeRoutes from './route/Challenge.js';
+import uploadRoutes from './route/Upload.js';
 import { initializeWebSocket } from './services/websocketService.js';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
@@ -23,15 +30,18 @@ const io = initializeWebSocket(server);
 
 // CORS Configuration - Allow all origins in development
 app.use(cors({
-  origin:['http://localhost:5173','http://localhost:8081'], // Reflects the request origin
+  origin:["*"], // Reflects the request origin
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
   exposedHeaders: ['X-New-Access-Token'], // Expose custom header for auto-refreshed tokens
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -47,6 +57,7 @@ app.use('/tasks', taskRoutes);
 app.use('/habits', habitRoutes);
 app.use('/leaderboard', leaderboardRoutes);
 app.use('/challenges', challengeRoutes);
+app.use('/upload', uploadRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

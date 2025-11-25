@@ -53,42 +53,57 @@ export default (sequelize) => {
       allowNull: false,
       defaultValue: DataTypes.NOW
     },
-    // TODO: Verification system not yet implemented
-    // proof: {
-    //   type: DataTypes.TEXT,
-    //   allowNull: true,
-    //   comment: 'Text proof of task completion'
-    // },
-    // proofImageUrl: {
-    //   type: DataTypes.TEXT,
-    //   allowNull: true,
-    //   comment: 'Image proof URL'
-    // },
-    // isVerified: {
-    //   type: DataTypes.BOOLEAN,
-    //   allowNull: false,
-    //   defaultValue: false,
-    //   comment: 'Whether completion has been verified'
-    // },
-    // verifiedBy: {
-    //   type: DataTypes.UUID,
-    //   allowNull: true,
-    //   references: {
-    //     model: 'users',
-    //     key: 'id'
-    //   },
-    //   comment: 'Who verified the completion'
-    // },
-    // verifiedAt: {
-    //   type: DataTypes.DATE,
-    //   allowNull: true,
-    //   comment: 'When completion was verified'
-    // },
-    // verificationNotes: {
-    //   type: DataTypes.TEXT,
-    //   allowNull: true,
-    //   comment: 'Verifier notes'
-    // },
+    proof: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: 'Text proof of task completion'
+    },
+    proofImageUrl: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: 'Image proof URL'
+    },
+    isVerified: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      comment: 'Whether completion has been verified'
+    },
+    verifiedBy: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id'
+      },
+      comment: 'Who verified the completion'
+    },
+    verifiedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: 'When completion was verified'
+    },
+    verificationNotes: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: 'Verifier notes'
+    },
+    status: {
+      type: DataTypes.ENUM('pending', 'approved', 'rejected', 'failed'),
+      allowNull: false,
+      defaultValue: 'pending',
+      comment: 'Verification status'
+    },
+    rejectionReason: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: 'Reason for rejection'
+    },
+    aiAnalysis: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      comment: 'AI verification analysis result'
+    },
     durationMinutes: {
       type: DataTypes.INTEGER,
       allowNull: true,
@@ -123,6 +138,10 @@ export default (sequelize) => {
       {
         name: 'idx_challenge_task_completions_is_verified',
         fields: ['isVerified']
+      },
+      {
+        name: 'idx_challenge_task_completions_status',
+        fields: ['status']
       },
       {
         name: 'idx_challenge_task_completions_task_user',

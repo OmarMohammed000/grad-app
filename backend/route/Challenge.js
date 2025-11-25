@@ -13,6 +13,8 @@ import getChallengeLeaderboard from '../controllers/Challenge/getChallengeLeader
 import getChallengeProgress from '../controllers/Challenge/getChallengeProgress.js';
 import getInviteCode from '../controllers/Challenge/getInviteCode.js';
 import findChallengeByCode from '../controllers/Challenge/findChallengeByCode.js';
+import getChallengeVerifications from '../controllers/Challenge/getChallengeVerifications.js';
+import verifyChallengeTask from '../controllers/Challenge/verifyChallengeTask.js';
 
 const router = express.Router();
 
@@ -58,6 +60,15 @@ router.post('/:id/tasks', addChallengeTask);
 
 // Complete a challenge task
 router.post('/:challengeId/tasks/:taskId/complete', completeChallengeTask);
+
+/**
+ * Verification
+ */
+// Get pending verifications (creator/moderator only)
+router.get('/:id/verifications', getChallengeVerifications);
+
+// Verify a task completion (approve/reject)
+router.post('/:challengeId/completions/:completionId/verify', verifyChallengeTask);
 
 /**
  * Progress & Leaderboard

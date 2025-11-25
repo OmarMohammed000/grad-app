@@ -16,6 +16,8 @@ export interface Challenge {
   goalDescription?: string;
   status: 'upcoming' | 'active' | 'completed' | 'cancelled';
   isPublic: boolean;
+  isGlobal: boolean; // Added
+  verificationType: 'none' | 'manual' | 'ai'; // Added
   inviteCode?: string;
   maxParticipants?: number;
   currentParticipants: number;
@@ -25,9 +27,8 @@ export interface Challenge {
   tags: string[];
   rules?: string;
   prizeDescription?: string;
-  // requiresVerification: boolean; // TODO: Verification system not yet implemented
-  isTeamBased: boolean;
-  teamSize?: number;
+  // isTeamBased: boolean; // Removed
+  // teamSize?: number; // Removed
   difficultyLevel: 'beginner' | 'intermediate' | 'advanced' | 'expert';
   completedAt?: string; // ISO date
   createdAt: string;
@@ -57,8 +58,8 @@ export interface ChallengeTask {
   maxCompletions?: number;
   orderIndex: number;
   tags: string[];
-  // requiresProof: boolean; // TODO: Verification system not yet implemented
-  // proofInstructions?: string; // TODO: Verification system not yet implemented
+  requiresProof: boolean; // Now relevant
+  proofInstructions?: string;
   estimatedDuration?: number; // minutes
   availableFrom?: string; // ISO date
   availableUntil?: string; // ISO date
@@ -87,7 +88,7 @@ export interface ChallengeParticipant {
   completedAt?: string;
   droppedAt?: string;
   badges?: any[];
-  teamId?: string;
+  // teamId?: string; // Removed
   user?: {
     id: string;
     profile: {
@@ -107,12 +108,22 @@ export interface ChallengeTaskCompletion {
   completedAt: string;
   proof?: string;
   proofImageUrl?: string;
-  // isVerified: boolean; // TODO: Verification system not yet implemented
-  // verifiedBy?: string; // TODO: Verification system not yet implemented
-  // verifiedAt?: string; // TODO: Verification system not yet implemented
+  isVerified: boolean;
+  verifiedBy?: string;
+  verifiedAt?: string;
+  status: 'pending' | 'approved' | 'rejected' | 'failed'; // Added
+  rejectionReason?: string; // Added
+  aiAnalysis?: any; // Added
   durationMinutes?: number;
   completionNumber: number;
   challengeTask?: ChallengeTask;
+  user?: {
+    id: string;
+    profile?: {
+      displayName: string;
+      avatarUrl?: string;
+    };
+  };
 }
 
 export interface ChallengeProgress {
@@ -151,7 +162,7 @@ export interface CreateChallengeData {
   tags?: string[];
   rules?: string;
   prizeDescription?: string;
-  // requiresVerification?: boolean; // TODO: Verification system not yet implemented
+  verificationType?: 'none' | 'manual' | 'ai';
   isTeamBased?: boolean;
   teamSize?: number;
   difficultyLevel?: 'beginner' | 'intermediate' | 'advanced' | 'expert';
@@ -189,8 +200,8 @@ export interface AddChallengeTaskData {
   maxCompletions?: number;
   orderIndex?: number;
   tags?: string[];
-  // requiresProof?: boolean; // TODO: Verification system not yet implemented
-  // proofInstructions?: string; // TODO: Verification system not yet implemented
+  requiresProof?: boolean;
+  proofInstructions?: string;
   estimatedDuration?: number;
   availableFrom?: string;
   availableUntil?: string;
@@ -198,8 +209,8 @@ export interface AddChallengeTaskData {
 }
 
 export interface CompleteChallengeTaskData {
-  // proof?: string; // TODO: Verification system not yet implemented
-  // proofImageUrl?: string; // TODO: Verification system not yet implemented
+  proof?: string;
+  proofImageUrl?: string;
   durationMinutes?: number;
 }
 
@@ -230,6 +241,7 @@ export interface ChallengeStats {
   status: 'active' | 'completed' | 'dropped_out' | 'disqualified';
   joinedAt: string;
   daysInChallenge: number;
+  recentCompletions?: ChallengeTaskCompletion[];
 }
 
 export interface LeaderboardEntry {
@@ -270,13 +282,13 @@ export class ChallengeService {
   }> {
     try {
       const queryParams = new URLSearchParams();
-      
+
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
           queryParams.append(key, String(value));
         }
       });
-      
+
       const response = await api.get(`/challenges?${queryParams.toString()}`);
       return response.data;
     } catch (error: any) {
@@ -294,7 +306,7 @@ export class ChallengeService {
   /**
    * Get single challenge by ID
    */
-  static async getChallenge(id: string): Promise<{ 
+  static async getChallenge(id: string): Promise<{
     challenge: Challenge & {
       challengeTasks: ChallengeTask[];
       participants: ChallengeParticipant[];
@@ -505,7 +517,7 @@ export class ChallengeService {
         `/challenges/${challengeId}/tasks/${taskId}/complete`,
         data || {}
       );
-      
+
       if (response.data.challengeCompleted) {
         Toast.show({
           type: 'success',
@@ -520,7 +532,7 @@ export class ChallengeService {
           text2: `+${response.data.completion.xpEarned} XP earned`,
         });
       }
-      
+
       return response.data;
     } catch (error: any) {
       console.error('Error completing task:', error);
@@ -696,6 +708,25 @@ export class ChallengeService {
     if (tags.includes('meditation') || tags.includes('mindfulness')) return 'leaf';
     if (goalType === 'total_xp') return 'star';
     return 'trophy';
+  }
+
+  /**
+   * Helper: Get task type color
+   */
+  static getTaskTypeColor(type: string): string {
+    if (type === 'bonus') return '#D946EF'; // Purple
+    if (type === 'required') return '#EF4444'; // Red
+    return '#3B82F6'; // Blue (optional)
+  }
+
+  /**
+   * Helper: Get difficulty color
+   */
+  static getDifficultyColor(difficulty: string): string {
+    if (difficulty === 'extreme') return '#DC2626'; // Dark Red
+    if (difficulty === 'hard') return '#F59E0B'; // Orange
+    if (difficulty === 'medium') return '#3B82F6'; // Blue
+    return '#10B981'; // Green (easy)
   }
 
   /**

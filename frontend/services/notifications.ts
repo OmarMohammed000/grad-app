@@ -11,15 +11,6 @@ declare global {
 }
 
 // Configure how notifications are handled when app is in foreground (mobile only)
-if (Platform.OS !== 'web') {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-    }),
-  });
-}
 
 export interface NotificationData {
   title: string;
@@ -56,7 +47,7 @@ export class NotificationService {
 
         // Request permission
         const permission = await Notification.requestPermission();
-        
+
         if (permission === 'granted') {
           return true;
         } else {

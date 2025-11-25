@@ -9,7 +9,10 @@ export default async function joinChallenge(req, res) {
 
   try {
     const { id } = req.params;
-    const { inviteCode, teamId } = req.body;
+    const { inviteCode } = req.body;
+
+    // Simple rate limiting: artificial delay to prevent brute force
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     const challenge = await db.GroupChallenge.findByPk(id, { transaction });
 
@@ -37,8 +40,6 @@ export default async function joinChallenge(req, res) {
       }
       
       // Try to find who shared the invite code (if provided in request)
-      // For now, we'll track if someone shared the code by checking if there's an inviter
-      // In future, we can add a separate endpoint to invite specific users
       const { inviterId } = req.body;
       if (inviterId && inviterId !== req.user.userId) {
         // Verify inviter is a participant
@@ -85,7 +86,6 @@ export default async function joinChallenge(req, res) {
       challengeId: id,
       userId: req.user.userId,
       status: 'active',
-      teamId: challenge.isTeamBased ? teamId : null,
       invitedBy: invitedByUserId, // Track who invited this user (if applicable)
       joinedAt: new Date()
     }, { transaction });

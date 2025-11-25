@@ -11,8 +11,7 @@ export default async function completeChallengeTask(req, res) {
 
   try {
     const { challengeId, taskId } = req.params;
-    // const { proof, proofImageUrl, durationMinutes } = req.body; // TODO: Verification system not yet implemented
-    const { durationMinutes } = req.body;
+    const { proof, proofImageUrl, durationMinutes } = req.body;
 
     // Get challenge and task
     const challenge = await db.GroupChallenge.findByPk(challengeId, { transaction });
@@ -68,7 +67,8 @@ export default async function completeChallengeTask(req, res) {
       const completedPrereqs = await db.ChallengeTaskCompletion.count({
         where: {
           participantId: participant.id,
-          challengeTaskId: { [db.Sequelize.Op.in]: task.prerequisites }
+          challengeTaskId: { [db.Sequelize.Op.in]: task.prerequisites },
+          status: 'approved' // Only approved completions count
         },
         transaction
       });
@@ -85,7 +85,8 @@ export default async function completeChallengeTask(req, res) {
     const previousCompletions = await db.ChallengeTaskCompletion.count({
       where: {
         challengeTaskId: taskId,
-        participantId: participant.id
+        participantId: participant.id,
+        status: { [db.Sequelize.Op.ne]: 'rejected' } // Count pending or approved
       },
       transaction
     });
@@ -93,7 +94,7 @@ export default async function completeChallengeTask(req, res) {
     if (!task.isRepeatable && previousCompletions > 0) {
       await transaction.rollback();
       return res.status(400).json({ 
-        message: 'Task already completed' 
+        message: 'Task already completed or pending verification' 
       });
     }
 
@@ -104,137 +105,168 @@ export default async function completeChallengeTask(req, res) {
       });
     }
 
-    // TODO: Verification system not yet implemented
     // Check if proof is required
-    // if (task.requiresProof && !proof && !proofImageUrl) {
-    //   await transaction.rollback();
-    //   return res.status(400).json({ 
-    //     message: 'Proof is required for this task',
-    //     proofInstructions: task.proofInstructions
-    //   });
-    // }
+    if (task.requiresProof && !proof && !proofImageUrl) {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        message: 'Proof is required for this task',
+        proofInstructions: task.proofInstructions
+      });
+    }
 
-    // Create completion
+    // Check verification type
+    const verificationType = challenge.verificationType || 'none';
+    let status = 'approved'; // Default for 'none'
+    let aiResult = null;
+    let rejectionReason = null;
+
+    if (verificationType === 'manual') {
+      status = 'pending';
+      // If manual, we don't award XP yet
+    } else if (verificationType === 'ai') {
+      if (!proofImageUrl) {
+        await transaction.rollback();
+        return res.status(400).json({ message: 'Image proof is required for AI verification' });
+      }
+
+      // Call AI service
+      try {
+        const { verifyImage } = await import('../../services/aiVerificationService.js');
+        aiResult = await verifyImage(proofImageUrl, task.description || task.title);
+        
+        if (aiResult.approved) {
+          status = 'approved';
+        } else {
+          status = 'rejected';
+          rejectionReason = aiResult.reason;
+        }
+      } catch (error) {
+        console.error('AI Verification failed:', error);
+        // Fallback to manual if AI fails? Or just fail?
+        // Let's fail for now to avoid bypassing checks
+        await transaction.rollback();
+        return res.status(500).json({ message: 'AI verification service unavailable' });
+      }
+    }
+
+    // Create completion record
     const completion = await db.ChallengeTaskCompletion.create({
       challengeTaskId: taskId,
       participantId: participant.id,
       userId: req.user.userId,
-      pointsEarned: task.pointValue,
-      xpEarned: task.xpReward,
+      pointsEarned: status === 'approved' ? task.pointValue : 0,
+      xpEarned: status === 'approved' ? task.xpReward : 0,
       completedAt: new Date(),
-      // proof, // TODO: Verification system not yet implemented
-      // proofImageUrl, // TODO: Verification system not yet implemented
-      // isVerified: !task.requiresVerification, // Auto-verify if verification not required
+      proof,
+      proofImageUrl,
       durationMinutes,
-      completionNumber: previousCompletions + 1
+      completionNumber: previousCompletions + 1,
+      status,
+      rejectionReason,
+      aiAnalysis: aiResult,
+      isVerified: status === 'approved' && verificationType !== 'manual', // Auto-verified if AI approved or no verification
+      verifiedAt: status === 'approved' && verificationType !== 'manual' ? new Date() : null,
+      verifiedBy: status === 'approved' && verificationType === 'ai' ? null : null // System verified for AI (null for now, or use a system user ID)
     }, { transaction });
 
-    // Update participant progress
-    participant.completedTasksCount += 1;
-    participant.totalPoints += task.pointValue;
-    participant.totalXpEarned += task.xpReward;
+    // Only update progress and award XP if approved
+    let challengeCompleted = false;
 
-    // Update currentProgress based on challenge goal type
-    if (challenge.goalType === 'total_xp') {
-      participant.currentProgress = participant.totalXpEarned;
-    } else {
-      // Default task_count
-      participant.currentProgress = participant.completedTasksCount;
-    }
-    participant.lastActivityDate = new Date().toISOString().split('T')[0];
+    if (status === 'approved') {
+      // Update participant progress
+      participant.completedTasksCount += 1;
+      participant.totalPoints += task.pointValue;
+      participant.totalXpEarned += task.xpReward;
 
-    // Update streak
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    
-    if (participant.lastActivityDate === yesterday) {
-      participant.streakDays += 1;
-      participant.longestStreak = Math.max(participant.longestStreak, participant.streakDays);
-    } else if (participant.lastActivityDate !== today) {
-      participant.streakDays = 1;
-    }
+      // Update currentProgress based on challenge goal type
+      if (challenge.goalType === 'total_xp') {
+        participant.currentProgress = participant.totalXpEarned;
+      } else {
+        // Default task_count
+        participant.currentProgress = participant.completedTasksCount;
+      }
+      participant.lastActivityDate = new Date().toISOString().split('T')[0];
 
-    // Check if challenge is completed
-    const achievedGoal = challenge.goalType === 'total_xp'
-      ? participant.totalXpEarned >= challenge.goalTarget
-      : participant.completedTasksCount >= challenge.goalTarget;
+      // Update streak
+      const today = new Date().toISOString().split('T')[0];
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
+      if (participant.lastActivityDate === yesterday) {
+        participant.streakDays += 1;
+        participant.longestStreak = Math.max(participant.longestStreak, participant.streakDays);
+      } else if (participant.lastActivityDate !== today) {
+        participant.streakDays = 1;
+      }
+      
+      // Check if challenge goal reached
+      if (participant.currentProgress >= challenge.goalTarget && participant.status === 'active') {
+        participant.status = 'completed';
+        participant.completedAt = new Date();
+        challengeCompleted = true;
+        
+        // Award bonus XP for completing challenge
+        if (challenge.xpReward > 0) {
+          // Update character total challenges completed
+          const character = await db.Character.findOne({
+            where: { userId: req.user.userId },
+            transaction
+          });
+          
+          if (character) {
+            character.totalChallengesCompleted += 1;
+            character.xp += challenge.xpReward; // Award bonus XP
+            await character.save({ transaction });
+          }
+        }
+      }
+      
+      await participant.save({ transaction });
 
-    if (achievedGoal) {
-      participant.status = 'completed';
-      participant.completedAt = new Date();
-
-      // Update character total challenges completed
-      const character = await db.Character.findOne({
-        where: { userId: req.user.userId },
+      // Ensure challenge-level completion status is updated when appropriate
+      await finalizeChallengeIfNeeded(challenge, {
+        checkParticipants: true,
         transaction
       });
 
-      if (character) {
-        character.totalChallengesCompleted += 1;
-        await character.save({ transaction });
+      // Update task completion count
+      task.completionCount += 1;
+      await task.save({ transaction });
+
+      const progressIncrement = challenge.goalType === 'total_xp' ? task.xpReward : 1;
+
+      // Create daily progress entry
+      const progressToday = await db.ChallengeProgress.findOne({
+        where: {
+          participantId: participant.id,
+          date: today
+        },
+        transaction
+      });
+
+      if (progressToday) {
+        progressToday.tasksCompleted += 1;
+        progressToday.xpEarned += task.xpReward;
+        progressToday.pointsEarned += task.pointValue;
+        progressToday.progressValue += progressIncrement;
+        progressToday.cumulativeProgress = participant.currentProgress;
+        progressToday.streakCount = participant.streakDays;
+        await progressToday.save({ transaction });
+      } else {
+        await db.ChallengeProgress.create({
+          participantId: participant.id,
+          challengeId,
+          userId: req.user.userId,
+          date: today,
+          progressValue: progressIncrement,
+          tasksCompleted: 1,
+          xpEarned: task.xpReward,
+          pointsEarned: task.pointValue,
+          cumulativeProgress: participant.currentProgress,
+          streakCount: participant.streakDays
+        }, { transaction });
       }
 
-      // Award bonus XP for completing challenge
-      if (challenge.xpReward > 0) {
-        await awardXP(
-          req.user.userId,
-          challenge.xpReward,
-          'challenge_completed',
-          { challengeId, challengeTitle: challenge.title },
-          transaction
-        );
-      }
-    }
-
-    await participant.save({ transaction });
-
-    // Ensure challenge-level completion status is updated when appropriate
-    await finalizeChallengeIfNeeded(challenge, {
-      checkParticipants: true,
-      transaction
-    });
-
-    // Update task completion count
-    task.completionCount += 1;
-    await task.save({ transaction });
-
-    const progressIncrement = challenge.goalType === 'total_xp' ? task.xpReward : 1;
-
-    // Create daily progress entry
-    const progressToday = await db.ChallengeProgress.findOne({
-      where: {
-        participantId: participant.id,
-        date: today
-      },
-      transaction
-    });
-
-    if (progressToday) {
-      progressToday.tasksCompleted += 1;
-      progressToday.xpEarned += task.xpReward;
-      progressToday.pointsEarned += task.pointValue;
-      progressToday.progressValue += progressIncrement;
-      progressToday.cumulativeProgress = participant.currentProgress;
-      progressToday.streakCount = participant.streakDays;
-      await progressToday.save({ transaction });
-    } else {
-      await db.ChallengeProgress.create({
-        participantId: participant.id,
-        challengeId,
-        userId: req.user.userId,
-        date: today,
-        progressValue: progressIncrement,
-        tasksCompleted: 1,
-        xpEarned: task.xpReward,
-        pointsEarned: task.pointValue,
-        cumulativeProgress: participant.currentProgress,
-        streakCount: participant.streakDays
-      }, { transaction });
-    }
-
-    // TODO: Verification system not yet implemented - always award XP for now
-    // Award XP to user character (if verification not required)
-    // if (!task.requiresVerification) {
+      // Award XP to user character (if verification not required)
       await awardXP(
         req.user.userId,
         task.xpReward,
@@ -242,15 +274,16 @@ export default async function completeChallengeTask(req, res) {
         { challengeId, taskId, taskTitle: task.title },
         transaction
       );
-    // }
+    }
 
     await transaction.commit();
 
     return res.json({
-      message: 'Task completed successfully!',
-      // message: task.requiresVerification 
-      //   ? 'Task completed! Awaiting verification.'
-      //   : 'Task completed successfully!', // TODO: Verification system not yet implemented
+      message: status === 'pending' 
+        ? 'Task submitted for verification.'
+        : status === 'rejected'
+          ? `Task rejected: ${rejectionReason}`
+          : 'Task completed successfully!',
       completion,
       participant,
       challengeCompleted: participant.status === 'completed'

@@ -16,7 +16,7 @@ export function ChallengeCard({ challenge, onPress, onJoin, showJoinButton }: Ch
   const daysRemaining = ChallengeService.calculateDaysRemaining(challenge.endDate);
   const color = ChallengeService.getChallengeColor(challenge.difficultyLevel, challenge.challengeType);
   const icon = ChallengeService.getChallengeIcon(challenge.goalType, challenge.tags);
-  
+
   const goalUnit = challenge.goalType === 'total_xp' ? 'XP' : 'tasks';
   const goalLabel = challenge.goalType === 'total_xp' ? 'Total XP' : 'Task Count';
 
@@ -62,6 +62,20 @@ export function ChallengeCard({ challenge, onPress, onJoin, showJoinButton }: Ch
             </Text>
           </View>
         </View>
+
+        {/* Verification Badge */}
+        {challenge.verificationType !== 'none' && (
+          <View style={styles.verificationBadge}>
+            <Ionicons
+              name={challenge.verificationType === 'ai' ? 'sparkles' : 'shield-checkmark'}
+              size={14}
+              color="rgba(255,255,255,0.9)"
+            />
+            <Text style={styles.verificationText}>
+              {challenge.verificationType === 'ai' ? 'AI Verified' : 'Manual Review'}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.footer}>
           <View style={styles.participantsContainer}>
@@ -194,6 +208,22 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '600',
     fontSize: 14,
+  },
+  verificationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
+    marginBottom: 12,
+    alignSelf: 'flex-start',
+  },
+  verificationText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.9)',
   },
 });
 
