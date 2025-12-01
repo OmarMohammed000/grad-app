@@ -12,7 +12,8 @@
     "db:seed": "sequelize-cli db:seed:all",
     "db:seed:undo": "sequelize-cli db:seed:undo:all",
     "db:create": "sequelize-cli db:create",
-    "db:drop": "sequelize-cli db:drop"
+    "db:drop": "sequelize-cli db:drop",
+    "tunnel": "npx ngrok http 4000"
   },
   "keywords": [],
   "author": "",
@@ -26,6 +27,7 @@
     "express": "^5.1.0",
     "google-auth-library": "^9.0.0",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
     "pg": "^8.16.3",
     "sequelize": "^6.37.7",
     "socket.io": "^4.8.1"

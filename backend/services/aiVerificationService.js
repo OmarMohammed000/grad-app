@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
 /**
  * Verify an image against a task description using Gemini API
@@ -22,6 +22,10 @@ export async function verifyImage(imageUrl, taskDescription) {
   }
 
   try {
+    console.log('🤖 AI Verification Started');
+    console.log('📝 Task Description:', taskDescription);
+    console.log('🖼️  Image URL:', imageUrl);
+
     // Construct the prompt
     const prompt = `
       You are an AI verifier for a challenge app. 
@@ -99,15 +103,25 @@ export async function verifyImage(imageUrl, taskDescription) {
       throw new Error('Empty response from Gemini');
     }
 
+    console.log('📥 Raw Gemini Response:', textResponse);
+
     // Clean up markdown code blocks if present
     const jsonString = textResponse.replace(/```json\n?|\n?```/g, '').trim();
     const result = JSON.parse(jsonString);
 
-    return {
+    const finalResult = {
       approved: result.approved,
       reason: result.reason,
       confidence: result.confidence
     };
+
+    console.log('✅ AI Verification Successful!');
+    console.log('📤 Result sent to frontend:', JSON.stringify(finalResult, null, 2));
+    console.log(`   - Approved: ${finalResult.approved ? '✅ YES' : '❌ NO'}`);
+    console.log(`   - Reason: ${finalResult.reason}`);
+    console.log(`   - Confidence: ${(finalResult.confidence * 100).toFixed(0)}%`);
+
+    return finalResult;
 
   } catch (error) {
     console.error('AI Verification Error:', error);

@@ -24,7 +24,8 @@ export default async function authMiddleware(req, res, next) {
 
       // Add user info to request
       req.user = {
-        userId: decoded.userId
+        userId: decoded.userId,
+        role: decoded.role
       };
 
       next();
@@ -71,7 +72,8 @@ export default async function authMiddleware(req, res, next) {
 
           // Add user info to request
           req.user = {
-            userId: user.id
+            userId: user.id,
+            role: user.role
           };
 
           // Continue with the request
