@@ -14,6 +14,7 @@ import habitRoutes from './route/Habit.js';
 import leaderboardRoutes from './route/leaderboard.js';
 import challengeRoutes from './route/Challenge.js';
 import uploadRoutes from './route/Upload.js';
+import notificationRoutes from './route/Notification.js';
 import { initializeWebSocket } from './services/websocketService.js';
 
 dotenv.config();
@@ -58,6 +59,7 @@ app.use('/habits', habitRoutes);
 app.use('/leaderboard', leaderboardRoutes);
 app.use('/challenges', challengeRoutes);
 app.use('/upload', uploadRoutes);
+app.use('/notifications', notificationRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

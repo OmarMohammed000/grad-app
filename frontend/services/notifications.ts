@@ -11,6 +11,15 @@ declare global {
 }
 
 // Configure how notifications are handled when app is in foreground (mobile only)
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 export interface NotificationData {
   title: string;
@@ -115,7 +124,19 @@ export class NotificationService {
 
       this.expoPushToken = tokenData.data;
       return this.expoPushToken;
-    } catch (error) {
+    } catch (error: any) {
+      // Handle specific error for Expo Go on Android (SDK 53+)
+      if (error.message && error.message.includes('functionality provided by expo-notifications was removed from Expo Go')) {
+        console.warn('Push notifications are not supported in Expo Go on Android (SDK 53+). Using local notifications only.');
+        Toast.show({
+          type: 'info',
+          text1: 'Push Notifications Unavailable',
+          text2: 'Using local notifications only (Expo Go limitation).',
+          visibilityTime: 5000,
+        });
+        return null;
+      }
+
       console.error('Error getting Expo push token:', error);
       return null;
     }

@@ -86,6 +86,16 @@ export default (sequelize) => {
       allowNull: false,
       defaultValue: true,
       comment: 'Profile visibility to other users'
+    },
+    pushToken: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: 'Expo push token for mobile notifications'
+    },
+    pushTokenPlatform: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+      comment: 'Platform of the push token (ios, android, web)'
     }
   }, {
     tableName: 'user_profiles',
