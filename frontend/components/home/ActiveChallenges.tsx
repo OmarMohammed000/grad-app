@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
-import { ChallengeCard, Challenge } from './ChallengeCard';
+import { ChallengeCard } from '@/components/challenges/ChallengeCard';
+import { Challenge } from '@/services/challenges';
 import { EmptyState } from './EmptyState';
 
 interface ActiveChallengesProps {
@@ -17,7 +18,7 @@ export function ActiveChallenges({ challenges, onPressChallenge }: ActiveChallen
       <Text style={[styles.title, { color: theme.colors.text }]}>
         Active Challenges
       </Text>
-      
+
       {challenges.length === 0 ? (
         <EmptyState
           icon="trophy-outline"
@@ -27,7 +28,7 @@ export function ActiveChallenges({ challenges, onPressChallenge }: ActiveChallen
       ) : (
         <View style={styles.challengesList}>
           {challenges.map(challenge => (
-            <ChallengeCard 
+            <ChallengeCard
               key={challenge.id}
               challenge={challenge}
               onPress={onPressChallenge}
