@@ -201,49 +201,6 @@ export class NotificationService {
         throw new Error('Notification permissions not granted');
       }
 
-      // Web platform uses browser Notification API
-      if (Platform.OS === 'web') {
-        // Calculate delay in milliseconds
-        let delay = 0;
-        if (trigger) {
-          if ('seconds' in trigger) {
-            delay = trigger.seconds * 1000;
-          } else if ('date' in trigger && trigger.date) {
-            delay = new Date(trigger.date).getTime() - Date.now();
-          }
-        }
-
-        // Create notification with delay
-        const showNotification = () => {
-          const browserNotification = new Notification(notification.title, {
-            body: notification.body,
-            icon: '/favicon.png', // You can customize this
-            badge: '/favicon.png',
-            tag: notification.data?.id || `notification-${Date.now()}`,
-            data: notification.data || {},
-          });
-
-          // Handle click
-          browserNotification.onclick = () => {
-            window.focus();
-            browserNotification.close();
-          };
-
-          return browserNotification;
-        };
-
-        if (delay > 0) {
-          // Schedule for later
-          setTimeout(showNotification, delay);
-          return `web-notification-${Date.now()}-${delay}`;
-        } else {
-          // Show immediately
-          showNotification();
-          return `web-notification-${Date.now()}`;
-        }
-      }
-
-      // Mobile platform uses expo-notifications
       const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
           title: notification.title,

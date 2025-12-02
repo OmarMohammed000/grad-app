@@ -18,9 +18,25 @@ export default (sequelize) => {
       comment: 'User who receives the notification'
     },
     type: {
-      type: DataTypes.STRING(50),
+      type: DataTypes.ENUM(
+        'task_deadline_nearing',
+        'habit_streak_expiring',
+        'challenge_task_created',
+        'challenge_task_deadline',
+        'challenge_ending_soon',
+        'challenge_invitation',
+        'challenge_completed',
+        'inactive_user_reminder',
+        'verification_result',
+        'challenge_invite'
+      ),
       allowNull: false,
-      comment: 'Type of notification (e.g., verification_result, challenge_invite)'
+      comment: 'Type of notification'
+    },
+    title: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      comment: 'Short notification title'
     },
     message: {
       type: DataTypes.TEXT,
@@ -37,6 +53,26 @@ export default (sequelize) => {
       type: DataTypes.JSONB,
       allowNull: true,
       comment: 'Additional data related to the notification'
+    },
+    relatedEntityType: {
+      type: DataTypes.ENUM('task', 'habit', 'challenge', 'challenge_task'),
+      allowNull: true,
+      comment: 'Type of related entity for deep linking'
+    },
+    relatedEntityId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      comment: 'ID of the related entity'
+    },
+    scheduledFor: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: 'When notification should be sent (for future scheduling)'
+    },
+    sentAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: 'When notification was actually sent'
     }
   }, {
     tableName: 'notifications',
@@ -49,6 +85,22 @@ export default (sequelize) => {
       {
         name: 'idx_notifications_is_read',
         fields: ['isRead']
+      },
+      {
+        name: 'idx_notifications_scheduled_for',
+        fields: ['scheduledFor']
+      },
+      {
+        name: 'idx_notifications_sent_at',
+        fields: ['sentAt']
+      },
+      {
+        name: 'idx_notifications_related_entity_id',
+        fields: ['relatedEntityId']
+      },
+      {
+        name: 'idx_notifications_related_entity_type',
+        fields: ['relatedEntityType']
       }
     ]
   });

@@ -1,4 +1,5 @@
 import db from '../../models/index.js';
+import notificationService, { NotificationTypes } from '../../services/notificationService.js';
 
 /**
  * Add task to challenge (creator/moderator only)
@@ -28,14 +29,23 @@ export default async function addChallengeTask(req, res) {
       prerequisites = []
     } = req.body;
 
-    const challenge = await db.GroupChallenge.findByPk(challengeId, { transaction });
+    const challenge = await db.GroupChallenge.findByPk(challengeId, {
+      include: [
+        {
+          model: db.ChallengeParticipant,
+          as: 'participants',
+          attributes: ['userId']
+        }
+      ],
+      transaction
+    });
 
     if (!challenge) {
       await transaction.rollback();
       return res.status(404).json({ message: 'Challenge not found' });
     }
 
-    // Check if user is creator or moderator
+ // Check if user is creator or moderator
     const participant = await db.ChallengeParticipant.findOne({
       where: {
         challengeId,
@@ -83,6 +93,32 @@ export default async function addChallengeTask(req, res) {
     }, { transaction });
 
     await transaction.commit();
+
+    // Notify all participants about the new task (async, don't wait)
+    const participantIds = challenge.participants.map(p => p.userId);
+    notificationService.notifyUsers(participantIds, {
+      type: NotificationTypes.CHALLENGE_TASK_CREATED,
+      title: '✨ New Challenge Task!',
+      message: `New task "${title}" added to "${challenge.title}"`,
+      relatedEntityType: 'challenge_task',
+      relatedEntityId: task.id,
+      metadata: {
+        challengeId: challenge.id,
+        challengeTitle: challenge.title,
+        taskId: task.id,
+        taskTitle: title,
+        taskType,
+        pointValue,
+        xpReward
+      },
+      data: {
+        screen: 'ChallengeDetail',
+        challengeId: challenge.id,
+        taskId: task.id
+      }
+    }).catch(error => {
+      console.error('Error sending challenge task notifications:', error);
+    });
 
     return res.status(201).json({
       message: 'Challenge task added successfully',

@@ -16,6 +16,7 @@ import challengeRoutes from './route/Challenge.js';
 import uploadRoutes from './route/Upload.js';
 import notificationRoutes from './route/Notification.js';
 import { initializeWebSocket } from './services/websocketService.js';
+import notificationScheduler from './services/notificationScheduler.js';
 
 dotenv.config();
 
@@ -24,7 +25,8 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
-const PORT = process.env.PORT || 4000;
+// Use random port in test environment, otherwise use configured PORT
+const PORT = process.env.NODE_ENV === 'test' ? 0 : (process.env.PORT || 4000);
 
 // Initialize WebSocket
 const io = initializeWebSocket(server);
@@ -87,6 +89,10 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`🔗 Health: http://localhost:${PORT}/health`);
   console.log(`🔌 WebSocket: ws://192.168.1.100:${PORT}`);
   console.log('✅ Listening on all network interfaces (0.0.0.0)');
+  
+  // Initialize notification scheduler
+  console.log('📅 Initializing notification scheduler...');
+  notificationScheduler.init();
 });
 
 export default app;

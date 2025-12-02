@@ -96,6 +96,19 @@ export default (sequelize) => {
       type: DataTypes.STRING(20),
       allowNull: true,
       comment: 'Platform of the push token (ios, android, web)'
+    },
+    notificationPreferences: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      defaultValue: {
+        taskDeadlines: true,
+        habitStreaks: true,
+        challengeUpdates: true,
+        challengeInvitations: true,
+        inactiveReminders: true,
+        deadlineAdvanceHours: 24
+      },
+      comment: 'User notification preferences'
     }
   }, {
     tableName: 'user_profiles',

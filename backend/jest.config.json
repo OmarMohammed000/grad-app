@@ -1,0 +1,19 @@
+{
+  "testEnvironment": "node",
+  "testMatch": [
+    "**/tests/**/*.test.js"
+  ],
+  "collectCoverageFrom": [
+    "services/**/*.js",
+    "controllers/**/*.js",
+    "!**/node_modules/**"
+  ],
+  "transform": {
+    "^.+\\.js$": "babel-jest"
+  },
+  "moduleFileExtensions": [
+    "js",
+    "json"
+  ],
+  "testTimeout": 10000
+}
