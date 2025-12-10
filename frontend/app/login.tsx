@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import Toast from 'react-native-toast-message';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { Input, Button, Divider } from '@/components/form';
@@ -35,7 +36,11 @@ export default function LoginScreen() {
       const { authentication } = response;
       handleGoogleAuthSuccess(authentication?.accessToken, authentication?.idToken);
     } else if (response?.type === 'error') {
-      Alert.alert('Google Sign-In Error', response.error?.message || 'Failed to sign in');
+      Toast.show({
+        type: 'error',
+        text1: 'Google Sign-In Error',
+        text2: response.error?.message || 'Failed to sign in'
+      });
       setGoogleLoading(false);
     } else if (response?.type === 'dismiss' || response?.type === 'cancel') {
       setGoogleLoading(false);
@@ -43,17 +48,26 @@ export default function LoginScreen() {
   }, [response]);
 
   const handleGoogleAuthSuccess = async (accessToken: string | undefined, idToken: string | undefined) => {
-    if (!idToken) {
-      Alert.alert('Error', 'No ID token received from Google');
+    if (!idToken && !accessToken) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'No credentials received from Google'
+      });
       setGoogleLoading(false);
       return;
     }
 
     try {
-      await AuthService.googleSignIn(idToken);
+      // Pass both tokens - backend will use whichever is valid (ID token preferred, Access token fallback)
+      await AuthService.googleSignIn(idToken, accessToken);
       router.replace('/(tabs)');
     } catch (error: any) {
-      Alert.alert('Sign-In Error', error.message || 'Failed to complete Google sign-in');
+      Toast.show({
+        type: 'error',
+        text1: 'Sign-In Error',
+        text2: error.message || 'Failed to complete Google sign-in'
+      });
     } finally {
       setGoogleLoading(false);
     }
@@ -61,7 +75,11 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Please fill in all fields'
+      });
       return;
     }
 
@@ -81,7 +99,11 @@ export default function LoginScreen() {
     try {
       await promptAsync();
     } catch (error) {
-      Alert.alert('Error', 'Failed to start Google sign-in');
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to start Google sign-in'
+      });
       setGoogleLoading(false);
     }
   };

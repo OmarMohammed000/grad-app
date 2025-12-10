@@ -248,7 +248,11 @@ export default function ChallengeDetailScreen() {
 
       if (status !== 'granted') {
         console.log('❌ Camera permission denied');
-        Alert.alert('Permission needed', 'Camera permission is required to verify this task.');
+        Toast.show({
+          type: 'error',
+          text1: 'Permission needed',
+          text2: 'Camera permission is required to verify this task.'
+        });
         return;
       }
 
@@ -271,7 +275,11 @@ export default function ChallengeDetailScreen() {
         console.log('✅ Upload successful! URL:', proofImageUrl);
       } catch (error) {
         console.error('❌ Upload failed:', error);
-        Alert.alert('Upload Failed', 'Failed to upload proof image. Please try again.');
+        Toast.show({
+          type: 'error',
+          text1: 'Upload Failed',
+          text2: 'Failed to upload proof image. Please try again.'
+        });
         setUploading(false);
         return;
       } finally {
@@ -351,6 +359,11 @@ export default function ChallengeDetailScreen() {
             try {
               const data = await ChallengeService.getInviteCode(id, true);
               setInviteCode(data.inviteCode);
+              Toast.show({
+                type: 'success',
+                text1: 'Success',
+                text2: 'Invite code regenerated successfully'
+              });
             } catch (error) {
               // Error handled by service
             } finally {

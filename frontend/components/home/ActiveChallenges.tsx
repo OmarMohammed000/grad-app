@@ -12,6 +12,7 @@ interface ActiveChallengesProps {
 
 export function ActiveChallenges({ challenges, onPressChallenge }: ActiveChallengesProps) {
   const theme = useTheme();
+  const activeChallenges = challenges || [];
 
   return (
     <View style={styles.container}>
@@ -19,7 +20,7 @@ export function ActiveChallenges({ challenges, onPressChallenge }: ActiveChallen
         Active Challenges
       </Text>
 
-      {challenges.length === 0 ? (
+      {activeChallenges.length === 0 ? (
         <EmptyState
           icon="trophy-outline"
           title="No Active Challenges"
@@ -27,7 +28,7 @@ export function ActiveChallenges({ challenges, onPressChallenge }: ActiveChallen
         />
       ) : (
         <View style={styles.challengesList}>
-          {challenges.map(challenge => (
+          {activeChallenges.map(challenge => (
             <ChallengeCard
               key={challenge.id}
               challenge={challenge}

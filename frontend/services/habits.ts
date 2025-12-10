@@ -212,16 +212,27 @@ export class HabitService {
         notes,
         completedAt: completedAt?.toISOString(),
       });
-      Toast.show({
-        type: 'success',
-        text1: 'Habit Completed!',
-        text2: `+${response.data.xpEarned} XP earned!`,
-      });
+      const { xpEarned, leveledUp, newLevel } = response.data;
+
+      if (leveledUp) {
+        Toast.show({
+          type: 'success',
+          text1: 'Level Up! 🎉',
+          text2: `You reached Level ${newLevel}! (+${xpEarned} XP)`,
+          visibilityTime: 4000,
+        });
+      } else {
+        Toast.show({
+          type: 'success',
+          text1: 'Habit Completed!',
+          text2: `+${xpEarned} XP earned!`,
+        });
+      }
       return response.data;
     } catch (error: any) {
       console.error('Error completing habit:', error);
       const message = error.response?.data?.message || 'Failed to complete habit';
-      
+
       // Don't show error toast if habit was already completed today
       if (error.response?.status === 400 && message.includes('already completed')) {
         Toast.show({
@@ -288,7 +299,7 @@ export class HabitService {
     // Handle DATEONLY strings (YYYY-MM-DD) from backend
     const lastCompletedDate = new Date(habit.lastCompletedDate + 'T00:00:00');
     lastCompletedDate.setHours(0, 0, 0, 0);
-    
+
     return lastCompletedDate.getTime() === today.getTime();
   }
 

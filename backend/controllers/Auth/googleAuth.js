@@ -10,28 +10,48 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
  * Verifies Google token and creates/logs in user
  */
 export default async function googleAuth(req, res) {
-  const { credential, idToken } = req.body;
+  const { credential, idToken, accessToken } = req.body;
   
-  // Support both web (credential) and mobile (idToken) flows
+  // Support both web (credential), mobile (idToken), and access token flows
   const token = credential || idToken;
 
-  if (!token) {
-    return res.status(400).json({ message: 'Google token is required' });
-  }
+  let googleId, email, displayName;
 
   const transaction = await db.sequelize.transaction();
 
   try {
-    // Verify the Google token
-    const ticket = await client.verifyIdToken({
-      idToken: token,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
+    if (token) {
+        // Verify the Google ID token
+        const ticket = await client.verifyIdToken({
+        idToken: token,
+        audience: [
+            process.env.GOOGLE_CLIENT_ID,
+            process.env.GOOGLE_IOS_CLIENT_ID,
+            process.env.GOOGLE_ANDROID_CLIENT_ID
+        ].filter(Boolean),
+        });
 
-    const payload = ticket.getPayload();
-    const googleId = payload.sub;
-    const email = payload.email;
-    const displayName = payload.name || payload.given_name || 'Hunter';
+        const payload = ticket.getPayload();
+        googleId = payload.sub;
+        email = payload.email;
+        displayName = payload.name || payload.given_name || 'Hunter';
+    } else if (accessToken) {
+        // Fallback: Verify using Access Token (User Info Endpoint)
+        const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch user info from Google with access token');
+        }
+
+        const payload = await response.json();
+        googleId = payload.sub;
+        email = payload.email;
+        displayName = payload.name || payload.given_name || 'Hunter';
+    } else {
+        return res.status(400).json({ message: 'Google token (ID or Access) is required' });
+    }
 
     // Check if user exists by Google ID or email
     let user = await db.User.findOne({
@@ -140,7 +160,7 @@ export default async function googleAuth(req, res) {
     }
 
     // Generate JWT tokens
-    const accessToken = jwt.sign(
+    const jwtAccessToken = jwt.sign(
       { userId: user.id },
       process.env.JWT_SECRET,
       { expiresIn: '15m' }
@@ -173,7 +193,7 @@ export default async function googleAuth(req, res) {
     // Return user data with access token
     // Also return refresh token in body for React Native compatibility
     return res.status(200).json({
-      accessToken,
+      accessToken: jwtAccessToken,
       refreshToken, // Include in body for mobile apps
       user: {
         id: user.id,

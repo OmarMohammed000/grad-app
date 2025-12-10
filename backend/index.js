@@ -32,8 +32,9 @@ const PORT = process.env.NODE_ENV === 'test' ? 0 : (process.env.PORT || 4000);
 const io = initializeWebSocket(server);
 
 // CORS Configuration - Allow all origins in development
+// CORS Configuration - Allow all origins in development
 app.use(cors({
-  origin:["*"], // Reflects the request origin
+  origin: true, // Reflects the request origin
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],

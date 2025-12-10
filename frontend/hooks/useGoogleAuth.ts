@@ -19,19 +19,21 @@ import { makeRedirectUri } from 'expo-auth-session';
  * - promptAsync: Function to trigger Google Sign-In
  */
 export const useGoogleAuth = () => {
+  // Use makeRedirectUri with useProxy: true to generate the correct authentication proxy URL
+  // This automatically handles the https://auth.expo.io/@owner/slug format
   const redirectUri = makeRedirectUri({
-    scheme: 'frontend',
-    path: 'redirect',
+    useProxy: true,
   });
 
   // Only log once on initial mount (commented out to reduce console spam)
-  // console.log('Google Auth Redirect URI:', redirectUri);
+  console.log('Google Auth Redirect URI:', redirectUri);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     webClientId: GoogleConfig.webClientId,
     iosClientId: GoogleConfig.iosClientId,
     androidClientId: GoogleConfig.androidClientId,
     redirectUri: redirectUri,
+    scopes: ['openid', 'profile', 'email'],
   });
 
   useEffect(() => {

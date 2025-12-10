@@ -27,14 +27,14 @@ export class AuthService {
     try {
       console.log('📝 AuthService.register called with:', { email, displayName });
       console.log('📝 About to make API call to:', process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000');
-      
+
       const requestData = {
         email,
         password,
         displayName,
       };
       console.log('📝 Request data:', requestData);
-      
+
       console.log('📝 Calling api.post...');
       const response = await api.post('/auth/register', requestData);
       console.log('📝 API call completed successfully');
@@ -53,9 +53,9 @@ export class AuthService {
         response: error.response?.data,
         status: error.response?.status,
       });
-      
+
       let message = 'Registration failed';
-      
+
       if (error.code === 'ECONNABORTED') {
         message = 'Request timeout - Cannot reach server';
       } else if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
@@ -63,7 +63,7 @@ export class AuthService {
       } else if (error.response?.data?.message) {
         message = error.response.data.message;
       }
-      
+
       Toast.show({
         type: 'error',
         text1: 'Registration Failed',
@@ -109,17 +109,22 @@ export class AuthService {
   }
 
   // Google Sign-In using Expo Auth Session
-  // Exchanges Google ID token with backend for app tokens
-  static async googleSignIn(idToken: string): Promise<AuthResponse> {
+  // Exchanges Google ID token (or Access Token) with backend for app tokens
+  static async googleSignIn(idToken?: string, accessToken?: string): Promise<AuthResponse> {
     try {
+      if (!idToken && !accessToken) {
+        throw new Error('No token provided for Google Sign-In');
+      }
+
       const response = await api.post('/auth/google', {
         idToken,
+        accessToken,
       });
 
-      const { accessToken, refreshToken, user } = response.data;
+      const { accessToken: newAccessToken, refreshToken, user } = response.data;
 
       // Store tokens and user data
-      await TokenManager.setAccessToken(accessToken);
+      await TokenManager.setAccessToken(newAccessToken);
       if (refreshToken) {
         await TokenManager.setRefreshToken(refreshToken);
       }
@@ -131,7 +136,7 @@ export class AuthService {
         text2: `Signed in as ${user.displayName}`,
       });
 
-      return { accessToken, user };
+      return { accessToken: newAccessToken, user };
     } catch (error: any) {
       const message = error.response?.data?.message || 'Google sign-in failed';
       Toast.show({
@@ -182,7 +187,7 @@ export class AuthService {
     try {
       // Get refresh token from storage
       const refreshToken = await TokenManager.getRefreshToken();
-      
+
       if (!refreshToken) {
         throw new Error('No refresh token available');
       }
@@ -190,7 +195,7 @@ export class AuthService {
       const response = await api.post('/auth/refresh', {
         refreshToken: refreshToken
       });
-      
+
       const { accessToken, refreshToken: newRefreshToken, user } = response.data;
 
       await TokenManager.setAccessToken(accessToken);

@@ -37,7 +37,7 @@ export default function ChallengeHistoryScreen() {
         sortBy: 'endDate',
         sortOrder: 'DESC',
       });
-      setCompletedChallenges(response.challenges);
+      setCompletedChallenges(response.challenges || []);
     } catch (error) {
       console.error('Error loading challenge history:', error);
       setCompletedChallenges([]);

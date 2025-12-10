@@ -13,7 +13,7 @@ export function Header({ userName, userAvatar }: HeaderProps) {
   const theme = useTheme();
   const router = useRouter();
   const [avatarError, setAvatarError] = useState(false);
-  
+
   // Default avatar with first letter of username
   const defaultAvatar = (
     <View style={[styles.avatar, { backgroundColor: theme.colors.secondary || 'rgba(255, 255, 255, 0.3)' }]}>
@@ -26,8 +26,8 @@ export function Header({ userName, userAvatar }: HeaderProps) {
       <View style={styles.content}>
         <View style={styles.userInfo}>
           {userAvatar && !avatarError ? (
-            <Image 
-              source={{ uri: userAvatar }} 
+            <Image
+              source={{ uri: userAvatar }}
               style={styles.avatar}
               onError={() => {
                 // If image fails to load, show default avatar
@@ -42,19 +42,11 @@ export function Header({ userName, userAvatar }: HeaderProps) {
             <Text style={styles.userName}>{userName}</Text>
           </View>
         </View>
-        
+
         <View style={styles.actions}>
-          <TouchableOpacity 
-            style={styles.iconButton}
-            onPress={() => console.log('Notifications pressed')}
-          >
-            <Ionicons name="notifications-outline" size={24} color="#ffffff" />
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>3</Text>
-            </View>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+
+          <TouchableOpacity
             style={styles.iconButton}
             onPress={() => router.push('/settings')}
           >

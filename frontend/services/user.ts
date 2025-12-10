@@ -82,6 +82,7 @@ export class UserService {
     notificationsEnabled?: boolean;
     emailNotifications?: boolean;
     soundEnabled?: boolean;
+    theme?: 'light' | 'dark' | 'auto';
   }): Promise<UserResponse> {
     try {
       const response = await api.put('/users/me', data);
@@ -126,7 +127,7 @@ export class UserService {
     // Use currentXp and xpToNextLevel directly from character (matches backend)
     const currentXP = Number(character.currentXp) || 0;
     const maxXP = Number(character.xpToNextLevel) || 1000;
-    
+
     // Get rank name
     const rankName = character.rank?.name || 'E-Rank';
 

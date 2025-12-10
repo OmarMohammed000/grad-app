@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import NotificationService from '@/services/notifications';
 import Toast from 'react-native-toast-message';
+import * as Notifications from 'expo-notifications';
 
 /**
  * Test component for notifications
@@ -18,7 +19,7 @@ export function NotificationTestButton() {
     try {
       const hasPermission = await NotificationService.requestPermissions();
       setPermissionStatus(hasPermission ? 'granted' : 'denied');
-      
+
       if (hasPermission) {
         Toast.show({
           type: 'success',
@@ -29,7 +30,7 @@ export function NotificationTestButton() {
         Toast.show({
           type: 'info',
           text1: 'Permissions Denied',
-          text2: Platform.OS === 'web' 
+          text2: Platform.OS === 'web'
             ? 'Please allow notifications in your browser settings.'
             : 'Please enable notifications in your device settings.',
         });
@@ -49,11 +50,11 @@ export function NotificationTestButton() {
     try {
       const hasPermission = await NotificationService.requestPermissions();
       if (!hasPermission) {
-        Alert.alert(
-          'Permission Required',
-          'Please grant notification permissions first.',
-          [{ text: 'OK' }]
-        );
+        Toast.show({
+          type: 'error',
+          text1: 'Permission Required',
+          text2: 'Please grant notification permissions first.'
+        });
         setLoading(false);
         return;
       }
@@ -87,11 +88,11 @@ export function NotificationTestButton() {
     try {
       const hasPermission = await NotificationService.requestPermissions();
       if (!hasPermission) {
-        Alert.alert(
-          'Permission Required',
-          'Please grant notification permissions first.',
-          [{ text: 'OK' }]
-        );
+        Toast.show({
+          type: 'error',
+          text1: 'Permission Required',
+          text2: 'Please grant notification permissions first.'
+        });
         setLoading(false);
         return;
       }
@@ -104,7 +105,11 @@ export function NotificationTestButton() {
           data: { test: true, scheduled: true },
           sound: true,
         },
-        { seconds: 5 }
+        {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: 5,
+          repeats: false,
+        }
       );
 
       Toast.show({
@@ -129,11 +134,11 @@ export function NotificationTestButton() {
     try {
       const hasPermission = await NotificationService.requestPermissions();
       if (!hasPermission) {
-        Alert.alert(
-          'Permission Required',
-          'Please grant notification permissions first.',
-          [{ text: 'OK' }]
-        );
+        Toast.show({
+          type: 'error',
+          text1: 'Permission Required',
+          text2: 'Please grant notification permissions first.'
+        });
         setLoading(false);
         return;
       }
@@ -147,7 +152,11 @@ export function NotificationTestButton() {
             data: { test: true, number: i },
             sound: true,
           },
-          { seconds: i * 2 } // 2s, 4s, 6s
+          {
+            type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+            seconds: i * 2,
+            repeats: false,
+          }
         );
       }
 
@@ -178,7 +187,7 @@ export function NotificationTestButton() {
       </View>
 
       <Text style={[styles.description, { color: theme.colors.textSecondary }]}>
-        {Platform.OS === 'web' 
+        {Platform.OS === 'web'
           ? 'Test notifications in your browser. Make sure to allow notifications when prompted.'
           : 'Test notifications on your device.'}
       </Text>

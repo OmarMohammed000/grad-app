@@ -111,7 +111,7 @@ export default function HomeScreen() {
   const fetchLeaderboard = useCallback(async () => {
     try {
       const response = await LeaderboardService.getGlobalLeaderboard('all-time', 10);
-      setLeaderboard(response.leaderboard);
+      setLeaderboard(response.leaderboard || []);
       setUserRank(response.userRank);
     } catch (error) {
       console.error('Error fetching leaderboard:', error);

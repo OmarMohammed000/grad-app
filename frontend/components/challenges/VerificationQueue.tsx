@@ -7,10 +7,10 @@ import {
   Image,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Modal,
   TextInput,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontWeights, Fonts } from '../../constants/theme';
 import { ChallengeService, ChallengeTaskCompletion } from '../../services/challenges';
@@ -53,7 +53,11 @@ export const VerificationQueue: React.FC<VerificationQueueProps> = ({
       setVerifications(response.data.verifications);
     } catch (error) {
       console.error('Error loading verifications:', error);
-      Alert.alert('Error', 'Failed to load pending verifications');
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to load pending verifications'
+      });
     } finally {
       setLoading(false);
     }
@@ -77,7 +81,11 @@ export const VerificationQueue: React.FC<VerificationQueueProps> = ({
       }
     } catch (error) {
       console.error('Error verifying task:', error);
-      Alert.alert('Error', 'Failed to update verification status');
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to update verification status'
+      });
     } finally {
       setProcessingId(null);
     }

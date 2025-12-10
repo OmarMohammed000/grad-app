@@ -101,7 +101,7 @@ export class TodoService {
   }> {
     try {
       const queryParams = new URLSearchParams();
-      
+
       if (params.status) queryParams.append('status', params.status);
       if (params.priority) queryParams.append('priority', params.priority);
       if (params.difficulty) queryParams.append('difficulty', params.difficulty);
@@ -238,11 +238,22 @@ export class TodoService {
   }> {
     try {
       const response = await api.post(`/tasks/${id}/complete`, { notes });
-      Toast.show({
-        type: 'success',
-        text1: 'Task Completed!',
-        text2: `You earned ${response.data.completion.xpEarned} XP`,
-      });
+      const { completion, character } = response.data;
+
+      if (character?.leveledUp) {
+        Toast.show({
+          type: 'success',
+          text1: 'Level Up! 🎉',
+          text2: `You reached Level ${character.newLevel}! (+${completion.xpEarned} XP)`,
+          visibilityTime: 4000,
+        });
+      } else {
+        Toast.show({
+          type: 'success',
+          text1: 'Task Completed!',
+          text2: `You earned ${completion.xpEarned} XP`,
+        });
+      }
       return response.data;
     } catch (error: any) {
       console.error('Error completing todo:', error);
@@ -267,13 +278,13 @@ export class TodoService {
     try {
       const response = await api.delete(`/tasks/${id}/complete`);
       const xpRemoved = response.data.xpRemoved || 0;
-      
+
       Toast.show({
         type: 'success',
         text1: 'Completion Removed',
         text2: xpRemoved > 0 ? `${xpRemoved} XP removed` : 'Todo completion has been removed',
       });
-      
+
       return {
         message: 'Todo uncompleted successfully',
         task: response.data.task,

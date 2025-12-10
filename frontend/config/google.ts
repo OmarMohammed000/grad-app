@@ -23,12 +23,14 @@ export const GoogleConfig = {
   // Web Client ID - Get this from Google Cloud Console
   // Format: XXXXXXXXXX-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com
   webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'YOUR_GOOGLE_WEB_CLIENT_ID.apps.googleusercontent.com',
-  
+
   // iOS Client ID (optional, only needed for standalone iOS builds)
-  iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '',
-  
+  iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '',
+
   // Android Client ID (optional, only needed for standalone Android builds)
-  androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '',
+  androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '',
 };
+
+console.log('DEBUG: Google Config Loaded:', JSON.stringify(GoogleConfig, null, 2));
 
 export default GoogleConfig;

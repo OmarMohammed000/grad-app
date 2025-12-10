@@ -11,7 +11,8 @@ interface TodaysQuestsProps {
 
 export function TodaysQuests({ quests, onToggleQuest }: TodaysQuestsProps) {
   const theme = useTheme();
-  const remainingQuests = quests.filter(q => !q.completed).length;
+  const safeQuests = quests || [];
+  const remainingQuests = safeQuests.filter(q => !q.completed).length;
 
   return (
     <View style={styles.container}>
@@ -19,31 +20,31 @@ export function TodaysQuests({ quests, onToggleQuest }: TodaysQuestsProps) {
         <Text style={[styles.title, { color: theme.colors.text }]}>
           Today's Quests
         </Text>
-        {quests.length > 0 && (
+        {safeQuests.length > 0 && (
           <Text style={[styles.remaining, { color: theme.colors.textSecondary }]}>
             {remainingQuests} remaining
           </Text>
         )}
       </View>
-      
-      {quests.length === 0 ? (
-        <View 
+
+      {safeQuests.length === 0 ? (
+        <View
           style={[
             styles.emptyState,
             { backgroundColor: theme.colors.card },
             theme.shadows.sm
           ]}
         >
-          <View 
+          <View
             style={[
               styles.iconContainer,
               { backgroundColor: theme.colors.success + '20' }
             ]}
           >
-            <Ionicons 
-              name="checkmark-circle" 
-              size={48} 
-              color={theme.colors.success} 
+            <Ionicons
+              name="checkmark-circle"
+              size={48}
+              color={theme.colors.success}
             />
           </View>
           <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
@@ -55,10 +56,10 @@ export function TodaysQuests({ quests, onToggleQuest }: TodaysQuestsProps) {
         </View>
       ) : (
         <View style={styles.questsList}>
-          {quests.map(quest => (
-            <QuestItem 
-              key={quest.id} 
-              quest={quest} 
+          {safeQuests.map(quest => (
+            <QuestItem
+              key={quest.id}
+              quest={quest}
               onToggle={onToggleQuest}
             />
           ))}

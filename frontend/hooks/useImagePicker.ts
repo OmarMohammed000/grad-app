@@ -28,11 +28,11 @@ export function useImagePicker() {
       await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (cameraStatus !== 'granted' || mediaStatus !== 'granted') {
-      Alert.alert(
-        'Permissions Required',
-        'Please grant camera and photo library permissions to upload images.',
-        [{ text: 'OK' }]
-      );
+      Toast.show({
+        type: 'error',
+        text1: 'Permissions Required',
+        text2: 'Please grant camera and photo library permissions to upload images.'
+      });
       return false;
     }
 
@@ -155,6 +155,13 @@ export function useImagePicker() {
 
     // On mobile, show action sheet
     return new Promise((resolve) => {
+      // For selecting image source (Camera vs Gallery), we can't easily replace Alert with Toast.
+      // A Toast is for notifications, not for user input/selection.
+      // We would need a custom Modal or ActionSheet component to replace this Alert.
+      // Given the scope is "Rework App Alerts" (notifications), replacing a functional ActionSheet Alert 
+      // with a Toast is impossible (Toast doesn't have buttons).
+      // I will leave this Alert as is, because it's acting as an ActionSheet, not a notification.
+      // However, I can make it clear in the code why I'm keeping it.
       Alert.alert(
         'Select Image',
         'Choose an option',
