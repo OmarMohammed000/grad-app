@@ -1,50 +1,100 @@
-# Welcome to your Expo app 👋
+# 🚀 Arise: Gamified Productivity (Frontend)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+![Arise Banner](https://via.placeholder.com/800x200?text=Arise+Mobile+App) <!-- Replace with actual banner if available -->
 
-## Get started
+**Arise** is a mobile productivity application that transforms habit formation into an RPG-style game. Unlike traditional to-do lists, Arise combats "productivity boredom" by rewarding users with XP, Levels, and Streaks for completing tasks.
 
-1. Install dependencies
+The standout feature of Arise is its **Verified Economy**: users cannot simply "check a box" to complete hard challenges—they must prove it. The app integrates **Google Gemini AI** to act as a "Digital Referee," analyzing photo evidence to verify task completion before awarding points.
 
-   ```bash
-   npm install
-   ```
+---
 
-2. Start the app
+## 🌟 Key Features
 
-   ```bash
-   npx expo start
-   ```
+*   **🎮 Gamification Engine:** dynamic XP rewards based on task difficulty (`Easy` to `Extreme`) and consistency streaks.
+*   **🤖 AI Verification:** Submit photo proof for challenges (e.g., "Gym Workout"). The integration with **Google Gemini Vision** automatically accepts or rejects the submission based on context.
+*   **⚔️ Group Challenges:** Join global quests with other users.
+*   **📊 Leaderboards:** Real-time ranking system powered by WebSockets.
+*   **Premium UI:** A sleek, "Hunter" themed dark mode application built for focus and aesthetics.
 
-In the output, you'll find options to open the app in a
+---
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 🛠️ Tech Stack
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+*   **Framework:** [React Native](https://reactnative.dev/)
+*   **Platform:** [Expo](https://expo.dev/) (Managed Workflow)
+*   **Routing:** Expo Router (File-based routing)
+*   **Styling:** Custom StyleSheet with Theming Context
+*   **State Management:** React Context API
+*   **Networking:** Axios
+*   **Assets:** Expo Vector Icons, Expo Image
 
-## Get a fresh project
+---
 
-When you're ready, run:
+## 📱 Getting Started
 
-```bash
-npm run reset-project
+### Prerequisites
+*   Node.js (v18+)
+*   npm or yarn
+*   Expo Go app on your physical device (Android/iOS) OR an Android Emulator.
+
+### Installation
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/yourusername/arise-frontend.git
+    cd arise-frontend
+    ```
+
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    # or
+    npx expo install
+    ```
+
+3.  **Configure Environment:**
+    Create a `.env` file in the root if required (usually for API URL).
+    ```env
+    EXPO_PUBLIC_API_URL=http://your-backend-ip:3000
+    ```
+
+4.  **Run the App:**
+    ```bash
+    npx expo start
+    ```
+    *   Scan the QR code with **Expo Go** (Android/iOS).
+    *   Press `a` to open in Android Emulator.
+    *   Press `w` to run in Web Browser.
+
+---
+
+## 📂 Project Structure
+
+```
+frontend/
+├── app/                  # Screens & Routes (Expo Router)
+│   ├── (auth)/           # Login/Register screens
+│   ├── (tabs)/           # Main Tab Navigation (Home, Challenges, Leaderboard)
+│   └── ...
+├── components/           # Reusable UI Components
+│   ├── challenges/       # Challenge-specific cards & lists
+│   ├── form/             # Input, Button, Card components
+│   └── tasks/            # Todo items & modals
+├── contexts/             # Global State (Auth, Theme)
+├── services/             # API integration (AuthService, ChallengeService)
+└── hooks/                # Custom React Hooks
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-## Learn more
+## 🤝 Contributing
 
-To learn more about developing your project with Expo, look at the following resources:
+1.  Fork the Project
+2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4.  Push to the Branch (`git push origin feature/AmazingFeature`)
+5.  Open a Pull Request
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+---
 
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+*Verified Productivity. Gamified Life.*
