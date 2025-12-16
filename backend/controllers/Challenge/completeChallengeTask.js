@@ -57,8 +57,8 @@ export default async function completeChallengeTask(req, res) {
 
     if (!participant) {
       await transaction.rollback();
-      return res.status(403).json({ 
-        message: 'You must be an active participant to complete tasks' 
+      return res.status(403).json({
+        message: 'You must be an active participant to complete tasks'
       });
     }
 
@@ -75,8 +75,8 @@ export default async function completeChallengeTask(req, res) {
 
       if (completedPrereqs < task.prerequisites.length) {
         await transaction.rollback();
-        return res.status(400).json({ 
-          message: 'Prerequisites not completed' 
+        return res.status(400).json({
+          message: 'Prerequisites not completed'
         });
       }
     }
@@ -93,22 +93,22 @@ export default async function completeChallengeTask(req, res) {
 
     if (!task.isRepeatable && previousCompletions > 0) {
       await transaction.rollback();
-      return res.status(400).json({ 
-        message: 'Task already completed or pending verification' 
+      return res.status(400).json({
+        message: 'Task already completed or pending verification'
       });
     }
 
     if (task.isRepeatable && task.maxCompletions && previousCompletions >= task.maxCompletions) {
       await transaction.rollback();
-      return res.status(400).json({ 
-        message: `Maximum completions (${task.maxCompletions}) reached for this task` 
+      return res.status(400).json({
+        message: `Maximum completions (${task.maxCompletions}) reached for this task`
       });
     }
 
     // Check if proof is required
     if (task.requiresProof && !proof && !proofImageUrl) {
       await transaction.rollback();
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'Proof is required for this task',
         proofInstructions: task.proofInstructions
       });
@@ -133,7 +133,7 @@ export default async function completeChallengeTask(req, res) {
       try {
         const { verifyImage } = await import('../../services/aiVerificationService.js');
         aiResult = await verifyImage(proofImageUrl, task.description || task.title);
-        
+
         if (aiResult.approved) {
           status = 'approved';
         } else {
@@ -190,20 +190,20 @@ export default async function completeChallengeTask(req, res) {
       // Update streak
       const today = new Date().toISOString().split('T')[0];
       const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      
+
       if (participant.lastActivityDate === yesterday) {
         participant.streakDays += 1;
         participant.longestStreak = Math.max(participant.longestStreak, participant.streakDays);
       } else if (participant.lastActivityDate !== today) {
         participant.streakDays = 1;
       }
-      
+
       // Check if challenge goal reached
       if (participant.currentProgress >= challenge.goalTarget && participant.status === 'active') {
         participant.status = 'completed';
         participant.completedAt = new Date();
         challengeCompleted = true;
-        
+
         // Award bonus XP for completing challenge
         if (challenge.xpReward > 0) {
           // Update character total challenges completed
@@ -211,7 +211,7 @@ export default async function completeChallengeTask(req, res) {
             where: { userId: req.user.userId },
             transaction
           });
-          
+
           if (character) {
             character.totalChallengesCompleted += 1;
             character.xp += challenge.xpReward; // Award bonus XP
@@ -219,7 +219,7 @@ export default async function completeChallengeTask(req, res) {
           }
         }
       }
-      
+
       await participant.save({ transaction });
 
       // Ensure challenge-level completion status is updated when appropriate
@@ -276,10 +276,27 @@ export default async function completeChallengeTask(req, res) {
       );
     }
 
+    // Create notification for AI verification result
+    if (verificationType === 'ai') {
+      await db.Notification.create({
+        userId: req.user.userId,
+        type: 'verification_result',
+        message: status === 'approved'
+          ? `Your task "${task.title}" was approved by AI! +${task.xpReward} XP`
+          : `Your task "${task.title}" was rejected by AI: ${rejectionReason}`,
+        metadata: {
+          challengeId,
+          taskId,
+          completionId: completion.id,
+          status
+        }
+      }, { transaction });
+    }
+
     await transaction.commit();
 
     return res.json({
-      message: status === 'pending' 
+      message: status === 'pending'
         ? 'Task submitted for verification.'
         : status === 'rejected'
           ? `Task rejected: ${rejectionReason}`

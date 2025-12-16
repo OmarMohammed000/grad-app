@@ -14,8 +14,8 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/
 export async function verifyImage(imageUrl, taskDescription) {
   if (!GEMINI_API_KEY) {
     console.error('GEMINI_API_KEY is not set');
-    return { 
-      approved: false, 
+    return {
+      approved: false,
       reason: 'AI verification service is not configured (missing API key).',
       confidence: 0
     };
@@ -46,18 +46,8 @@ export async function verifyImage(imageUrl, taskDescription) {
 
     // Fetch the image to convert to base64 if needed, or pass URL if Gemini supports it.
     // Gemini API supports image URLs in some contexts, but sending base64 is safer for public URLs.
-    // However, fetching image here might be slow. 
-    // For now, let's assume we pass the image data or URL.
-    // Actually, for simplicity in this implementation plan without adding 'axios' or 'node-fetch' (if not available),
-    // we will assume the frontend sends a base64 string or we use the URL if Gemini supports it directly.
-    // Gemini 1.5 Flash supports image parts.
-    
-    // NOTE: In a real production app, we would download the image from the URL and send the bytes.
-    // Since we don't want to add dependencies, we will try to use the URL if possible, 
-    // but standard Gemini API expects inline data or file data.
-    // Let's assume for this MVP that we can't easily download the image without 'node-fetch' if it's an old node version.
-    // BUT 'type': 'module' implies modern node. So 'fetch' should be available.
-    
+
+
     let imageBase64;
     try {
       const imageResponse = await fetch(imageUrl);
@@ -98,7 +88,7 @@ export async function verifyImage(imageUrl, taskDescription) {
 
     const data = await response.json();
     const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    
+
     if (!textResponse) {
       throw new Error('Empty response from Gemini');
     }
@@ -125,8 +115,8 @@ export async function verifyImage(imageUrl, taskDescription) {
 
   } catch (error) {
     console.error('AI Verification Error:', error);
-    return { 
-      approved: false, 
+    return {
+      approved: false,
       reason: 'AI verification failed due to technical error. Please try manual verification.',
       confidence: 0
     };

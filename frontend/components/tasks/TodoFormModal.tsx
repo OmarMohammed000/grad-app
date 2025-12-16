@@ -285,7 +285,8 @@ export function TodoFormModal({
                     value={tagInput}
                     onChangeText={setTagInput}
                     placeholder="Add tag"
-                    style={styles.tagInput}
+                    containerStyle={{ flex: 1, marginBottom: 0 }}
+                    textAlignVertical="center"
                     onSubmitEditing={handleAddTag}
                   />
                   <TouchableOpacity

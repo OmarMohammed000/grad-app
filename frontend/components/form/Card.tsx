@@ -8,12 +8,11 @@ interface CardProps extends ViewProps {
 
 export function Card({ children, elevated = true, style, ...props }: CardProps) {
   const theme = useTheme();
-  
+
   return (
     <View
       style={[
         styles.card,
-        theme.shadows.md,
         style,
       ]}
       {...props}

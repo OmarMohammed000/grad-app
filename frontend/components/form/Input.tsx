@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TextInput, Text, TouchableOpacity, StyleSheet, TextInputProps } from 'react-native';
+import { View, TextInput, Text, TouchableOpacity, StyleSheet, TextInputProps, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -9,6 +9,7 @@ interface InputProps extends TextInputProps {
   leftIcon?: keyof typeof Ionicons.glyphMap;
   rightIcon?: keyof typeof Ionicons.glyphMap;
   onRightIconPress?: () => void;
+  containerStyle?: ViewStyle;
 }
 
 export function Input({
@@ -18,49 +19,49 @@ export function Input({
   rightIcon,
   onRightIconPress,
   style,
+  containerStyle,
   ...props
 }: InputProps) {
   const theme = useTheme();
   const [isFocused, setIsFocused] = useState(false);
-  
-  const borderColor = error 
-    ? theme.colors.danger 
-    : isFocused 
-    ? theme.colors.primary 
-    : 'transparent';
 
-  const borderWidth = error || isFocused ? 2 : 0;
+  const borderColor = error
+    ? theme.colors.danger
+    : isFocused
+      ? theme.colors.primary
+      : 'transparent';
+
+  const borderWidth = 1;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, containerStyle]}>
       {label && (
         <Text style={[styles.label, { color: theme.colors.text }]}>
           {label}
         </Text>
       )}
-      
+
       <View style={[
         styles.inputContainer,
-        { 
+        {
           backgroundColor: theme.colors.card,
           borderColor,
           borderWidth,
         },
-        theme.shadows.sm,
       ]}>
         {leftIcon && (
-          <Ionicons 
-            name={leftIcon} 
-            size={20} 
-            color={error ? theme.colors.danger : theme.colors.icon} 
-            style={styles.leftIcon} 
+          <Ionicons
+            name={leftIcon}
+            size={20}
+            color={error ? theme.colors.danger : theme.colors.icon}
+            style={styles.leftIcon}
           />
         )}
-        
+
         <TextInput
           style={[
             styles.input,
-            { 
+            {
               color: theme.colors.text,
               outline: 'none',
             },
@@ -71,21 +72,21 @@ export function Input({
           onBlur={() => setIsFocused(false)}
           {...props}
         />
-        
+
         {rightIcon && (
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={onRightIconPress}
             style={styles.rightIcon}
           >
-            <Ionicons 
-              name={rightIcon} 
-              size={20} 
-              color={theme.colors.icon} 
+            <Ionicons
+              name={rightIcon}
+              size={20}
+              color={theme.colors.icon}
             />
           </TouchableOpacity>
         )}
       </View>
-      
+
       {error && (
         <Text style={[styles.errorText, { color: theme.colors.danger }]}>
           {error}

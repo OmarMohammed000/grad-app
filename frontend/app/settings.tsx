@@ -341,6 +341,7 @@ export default function SettingsScreen() {
                   }
                 />
                 <Text
+                  numberOfLines={1}
                   style={[
                     styles.themeOptionText,
                     {
@@ -348,8 +349,6 @@ export default function SettingsScreen() {
                         themeMode === themeOption
                           ? theme.colors.primary
                           : theme.colors.textSecondary,
-                      fontWeight:
-                        themeMode === themeOption ? '600' : '400',
                     },
                   ]}
                 >
@@ -611,14 +610,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingVertical: 16, // Increased padding
+    paddingHorizontal: 8,
     borderRadius: 12,
     borderWidth: 2,
+    minHeight: 56, // Enforce minimum height
   },
   themeOptionText: {
     fontSize: 14,
-    flex: 1,
+    fontWeight: '600',
+    // Removed flex: 1 to prevent squishing/wrapping
   },
 });
 

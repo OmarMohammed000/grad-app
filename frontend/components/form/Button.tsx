@@ -13,8 +13,8 @@ interface ButtonProps extends Omit<TouchableOpacityProps, 'style'> {
   style?: any;
 }
 
-export function Button({ 
-  title, 
+export function Button({
+  title,
   onPress,
   variant = 'primary',
   loading = false,
@@ -25,7 +25,7 @@ export function Button({
   ...props
 }: ButtonProps) {
   const theme = useTheme();
-  
+
   const getButtonColors = () => {
     switch (variant) {
       case 'primary':
@@ -42,9 +42,9 @@ export function Button({
         };
       case 'outline':
         return {
-          background: 'transparent',
-          text: theme.colors.primary,
-          border: theme.colors.primary,
+          background: theme.colors.backgroundSecondary,
+          text: theme.colors.text,
+          border: theme.colors.border,
         };
       case 'ghost':
         return {

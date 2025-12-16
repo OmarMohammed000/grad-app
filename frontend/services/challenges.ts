@@ -518,18 +518,33 @@ export class ChallengeService {
         data || {}
       );
 
-      if (response.data.challengeCompleted) {
+      const { completion, message, challengeCompleted } = response.data;
+
+      if (challengeCompleted) {
         Toast.show({
           type: 'success',
           text1: 'Challenge Completed!',
           text2: 'Congratulations! You completed the challenge!',
           visibilityTime: 4000,
         });
+      } else if (completion.status === 'rejected') {
+        Toast.show({
+          type: 'error',
+          text1: 'Task Rejected',
+          text2: completion.rejectionReason || message,
+          visibilityTime: 4000,
+        });
+      } else if (completion.status === 'pending') {
+        Toast.show({
+          type: 'info',
+          text1: 'Under Review',
+          text2: 'Task submitted for verification',
+        });
       } else {
         Toast.show({
           type: 'success',
           text1: 'Task Completed!',
-          text2: `+${response.data.completion.xpEarned} XP earned`,
+          text2: `+${completion.xpEarned} XP earned`,
         });
       }
 

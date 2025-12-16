@@ -88,8 +88,8 @@ export function ProfileEditModal({
       // Convert selected image to data URI for storage
       const finalAvatarUrl = selectedImage
         ? (selectedImage.base64
-            ? `data:${selectedImage.type || 'image/jpeg'};base64,${selectedImage.base64}`
-            : selectedImage.uri)
+          ? `data:${selectedImage.type || 'image/jpeg'};base64,${selectedImage.base64}`
+          : selectedImage.uri)
         : user?.profile?.avatarUrl; // Keep existing if no new image selected
 
       await onSave({
@@ -353,6 +353,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '90%',

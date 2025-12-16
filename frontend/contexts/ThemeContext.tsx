@@ -5,20 +5,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Define your theme structure
 export const lightTheme = {
   colors: {
-    primary: '#4285f4',
+    primary: '#3B82F6',
     secondary: '#FF6B35',
     success: '#06D6A0',
     danger: '#EF476F',
     warning: '#FFB84D',
-    
+
     background: '#ffffff',
     backgroundSecondary: '#f8f9fa',
     card: '#ffffff',
-    
+
     text: '#11181C',
     textSecondary: '#666666',
     textMuted: '#999999',
-    
+
     border: '#e0e0e0',
     shadow: 'rgba(0, 0, 0, 0.1)',
     icon: '#687076',
@@ -74,20 +74,20 @@ export const lightTheme = {
 
 export const darkTheme: typeof lightTheme = {
   colors: {
-    primary: '#4285f4',
+    primary: '#3B82F6',
     secondary: '#FF6B35',
     success: '#06D6A0',
     danger: '#EF476F',
     warning: '#FFB84D',
-    
+
     background: '#0D1117',
     backgroundSecondary: '#161B22',
     card: '#1C2128',
-    
+
     text: '#ECEDEE',
     textSecondary: '#B0B0B0',
     textMuted: '#808080',
-    
+
     border: '#30363D',
     shadow: 'rgba(0, 0, 0, 0.5)',
     icon: '#9BA1A6',

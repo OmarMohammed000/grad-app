@@ -272,15 +272,39 @@ export const uploadImage = async (uri: string): Promise<string> => {
 
     console.log('📦 FormData prepared, sending to /upload endpoint...');
 
-    // Don't set Content-Type - let axios handle it automatically for FormData
-    const response = await api.post('/upload', formData);
+    // Use fetch instead of axios for upload to avoid common Network Error issues with FormData in React Native
+    const token = await TokenManager.getAccessToken();
 
-    console.log('✅ Upload successful! URL:', response.data.url);
-    return response.data.url;
+    // Log the exact URL being hit for debugging
+    const uploadUrl = `${API_URL}/upload`;
+    console.log('🚀 Fetch Upload Request:', uploadUrl);
+
+    const response = await fetch(uploadUrl, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'Accept': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        // vital: do NOT set Content-Type for FormData, let fetch handle the boundary
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Upload Fetch Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText
+      });
+      throw new Error(`Upload failed: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Upload successful! URL:', data.url);
+    return data.url;
   } catch (error: any) {
     console.error('❌ Error uploading image:', error);
-    console.error('❌ Error response:', error.response?.data);
-    console.error('❌ Error status:', error.response?.status);
+    // enhance error message if possible
     throw error;
   }
 };

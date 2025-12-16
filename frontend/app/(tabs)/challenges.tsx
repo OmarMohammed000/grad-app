@@ -32,9 +32,17 @@ export default function ChallengesScreen() {
     activeCount: 0,
     completedThisMonth: 0,
   });
-  const [activeChallenges, setActiveChallenges] = useState<Challenge[]>([]);
-  const [featuredChallenges, setFeaturedChallenges] = useState<Challenge[]>([]);
-  const [completedChallenges, setCompletedChallenges] = useState<Challenge[]>([]);
+
+  const [challengesCache, setChallengesCache] = useState<{
+    [key in FilterTab]?: {
+      active: Challenge[];
+      featured: Challenge[];
+      completed: Challenge[];
+      loaded: boolean;
+      lastUpdated: number;
+    }
+  }>({});
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [joinLoading, setJoinLoading] = useState<string | null>(null);
@@ -42,6 +50,19 @@ export default function ChallengesScreen() {
   const [inviteCode, setInviteCode] = useState('');
   const [joinByCodeLoading, setJoinByCodeLoading] = useState(false);
   const [foundChallenge, setFoundChallenge] = useState<Challenge | null>(null);
+
+  // Get current challenges from cache or empty
+  const currentData = challengesCache[activeTab] || {
+    active: [],
+    featured: [],
+    completed: [],
+    loaded: false,
+    lastUpdated: 0
+  };
+
+  const activeChallenges = currentData.active;
+  const featuredChallenges = currentData.featured;
+  const completedChallenges = currentData.completed;
 
   // Load summary stats
   const loadSummary = useCallback(async () => {
@@ -73,7 +94,15 @@ export default function ChallengesScreen() {
   }, []);
 
   // Load challenges by filter
-  const loadChallenges = useCallback(async () => {
+  const loadChallenges = useCallback(async (forceRefresh = false) => {
+    // If we have cached data and it's fresh enough (e.g., < 1 minute) and not forced, don't show loading
+    const cached = challengesCache[activeTab];
+    const isFresh = cached && (Date.now() - cached.lastUpdated < 60000);
+
+    if (cached?.loaded && !forceRefresh && isFresh) {
+      return;
+    }
+
     try {
       const params: any = {
         myChallenges: activeTab === 'my',
@@ -85,11 +114,8 @@ export default function ChallengesScreen() {
         params.isGlobal = true;
       } else if (activeTab === 'group') {
         params.isPublic = true;
-        params.isGlobal = false; // Exclude global challenges from "Group" tab
+        params.isGlobal = false;
       }
-
-      // Don't send status parameter - backend defaults to showing 'upcoming' and 'active'
-      // when status is not provided. For 'my' challenges, we want all statuses anyway.
 
       const response = await ChallengeService.getChallenges(params);
 
@@ -107,17 +133,29 @@ export default function ChallengesScreen() {
         .filter((c) => c.status === 'completed' && c.hasJoined)
         .slice(0, 10);
 
-      setActiveChallenges(active);
-      setFeaturedChallenges(featured);
-      setCompletedChallenges(completed);
+      setChallengesCache(prev => ({
+        ...prev,
+        [activeTab]: {
+          active,
+          featured,
+          completed,
+          loaded: true,
+          lastUpdated: Date.now()
+        }
+      }));
+
     } catch (error) {
       console.error('Error loading challenges:', error);
     }
-  }, [activeTab]);
+  }, [activeTab, challengesCache]);
 
   // Load all data
   const loadData = useCallback(async () => {
-    setLoading(true);
+    // Only show full screen loading on initial mount if no data
+    if (!challengesCache['my']?.loaded) {
+      setLoading(true);
+    }
+
     try {
       await Promise.all([loadSummary(), loadChallenges()]);
     } catch (error) {
@@ -125,13 +163,13 @@ export default function ChallengesScreen() {
     } finally {
       setLoading(false);
     }
-  }, [loadSummary, loadChallenges]);
+  }, [loadSummary, loadChallenges, challengesCache]);
 
   // Refresh handler
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([loadSummary(), loadChallenges()]);
+      await Promise.all([loadSummary(), loadChallenges(true)]);
     } catch (error) {
       console.error('Error refreshing:', error);
     } finally {
@@ -147,8 +185,8 @@ export default function ChallengesScreen() {
       setJoinLoading(challengeId);
       try {
         await ChallengeService.joinChallenge(challengeId);
-        // Reload challenges after joining
-        await loadChallenges();
+        // Force reload current tab
+        await loadChallenges(true);
         await loadSummary();
       } catch (error) {
         // Error is already handled by the service
@@ -180,12 +218,11 @@ export default function ChallengesScreen() {
     async (data: any) => {
       try {
         await ChallengeService.createChallenge(data);
-        // Reload challenges after creating
-        await loadChallenges();
+        // Force reload
+        await loadChallenges(true);
         await loadSummary();
         setShowCreateModal(false);
       } catch (error) {
-        // Error is already handled by the service
         throw error;
       }
     },
@@ -208,7 +245,6 @@ export default function ChallengesScreen() {
       setFoundChallenge(response.challenge);
     } catch (error) {
       setFoundChallenge(null);
-      // Error handled by service
     } finally {
       setJoinByCodeLoading(false);
     }
@@ -223,8 +259,8 @@ export default function ChallengesScreen() {
       await ChallengeService.joinChallenge(foundChallenge.id, {
         inviteCode: inviteCode.trim(),
       });
-      // Reload challenges after joining
-      await loadChallenges();
+      // Force reload
+      await loadChallenges(true);
       await loadSummary();
       setInviteCode('');
       setFoundChallenge(null);
@@ -235,17 +271,17 @@ export default function ChallengesScreen() {
     }
   }, [foundChallenge, inviteCode, joinByCodeLoading, loadChallenges, loadSummary]);
 
-  // Load data on mount and when tab changes
+  // Load data on mount
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, []); // Only on mount
 
-  // Handle tab change
+  // Handle tab change - just load/refresh content for that tab
   useEffect(() => {
     loadChallenges();
-  }, [activeTab, loadChallenges]);
+  }, [activeTab]); // When tab changes
 
-  if (loading) {
+  if (loading && !challengesCache['my']?.loaded) {
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.header}>
@@ -456,26 +492,35 @@ export default function ChallengesScreen() {
         )}
 
         {/* Empty States */}
-        {activeTab === 'my' &&
-          activeChallenges.length === 0 &&
-          featuredChallenges.length === 0 &&
-          completedChallenges.length === 0 && (
-            <EmptyState
-              icon="trophy-outline"
-              title="No Challenges Yet"
-              message="Join a challenge or create your own to get started!"
-            />
-          )}
+        {!currentData.loaded ? (
+          <View style={{ padding: 40, alignItems: 'center' }}>
+            <ActivityIndicator size="small" color={theme.colors.primary} />
+          </View>
+        ) : (
+          <>
+            {activeTab === 'my' &&
+              activeChallenges.length === 0 &&
+              featuredChallenges.length === 0 &&
+              completedChallenges.length === 0 && (
+                <EmptyState
+                  icon="trophy-outline"
+                  title="No Challenges Yet"
+                  message="Join a challenge or create your own to get started!"
+                />
+              )}
 
-        {activeTab !== 'my' &&
-          featuredChallenges.length === 0 &&
-          activeChallenges.length === 0 && (
-            <EmptyState
-              icon="search-outline"
-              title="No Challenges Found"
-              message="There are no challenges available in this category right now."
-            />
-          )}
+            {activeTab !== 'my' &&
+              featuredChallenges.length === 0 &&
+              activeChallenges.length === 0 && (
+                <EmptyState
+                  icon="search-outline"
+                  title="No Challenges Found"
+                  message="There are no challenges available in this category right now."
+                />
+              )}
+          </>
+        )}
+
       </ScrollView>
 
       {/* Create Challenge Modal */}

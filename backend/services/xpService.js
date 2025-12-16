@@ -1,8 +1,8 @@
 import db from '../models/index.js';
-import { 
-  emitUserProgress, 
-  emitLevelUp, 
-  emitRankUp 
+import {
+  emitUserProgress,
+  emitLevelUp,
+  emitRankUp
 } from './websocketService.js';
 
 /**
@@ -38,7 +38,7 @@ export function calculateTaskXP(task, completionData = {}) {
 
   // Start with custom XP or base value - ensure it's a number
   let finalXP = Number(task.xpReward) || XP_BASE_VALUES.task[task.difficulty] || 25;
-  
+
   // Validate finalXP is a valid number
   if (isNaN(finalXP) || !isFinite(finalXP) || finalXP < 0) {
     console.error('Invalid XP value calculated, using default:', finalXP);
@@ -59,12 +59,12 @@ export function calculateTaskXP(task, completionData = {}) {
     try {
       const dueDate = new Date(task.dueDate);
       const completedDate = new Date(completionData.completedAt);
-      
+
       if (isNaN(dueDate.getTime()) || isNaN(completedDate.getTime())) {
         console.warn('Invalid date in XP calculation, skipping time bonus');
       } else {
         const daysEarly = Math.floor((dueDate - completedDate) / (1000 * 60 * 60 * 24));
-        
+
         if (daysEarly > 0) {
           // Small bonus for early completion
           const earlyBonus = Math.min(daysEarly * 0.05, 0.2); // max 20%
@@ -87,13 +87,13 @@ export function calculateTaskXP(task, completionData = {}) {
 
   // Final validation and rounding
   finalXP = Math.round(finalXP);
-  
+
   // Ensure final value is valid and within reasonable bounds
   if (isNaN(finalXP) || !isFinite(finalXP) || finalXP < 0) {
     console.error('Invalid final XP value, using default:', finalXP);
     finalXP = 25;
   }
-  
+
   // Cap at reasonable maximum (1 million XP per task)
   if (finalXP > 1000000) {
     console.error('XP value too large, capping at 1M:', finalXP);
@@ -118,7 +118,7 @@ export function calculateHabitXP(habit, completionData = {}) {
 
   // Start with custom XP or base value - ensure it's a number
   let finalXP = Number(habit.xpReward) || XP_BASE_VALUES.habit[habit.difficulty] || 15;
-  
+
   // Validate finalXP is a valid number
   if (isNaN(finalXP) || !isFinite(finalXP) || finalXP < 0) {
     console.error('Invalid XP value calculated, using default:', finalXP);
@@ -148,13 +148,13 @@ export function calculateHabitXP(habit, completionData = {}) {
 
   // Final validation and rounding
   finalXP = Math.round(finalXP);
-  
+
   // Ensure final value is valid and within reasonable bounds
   if (isNaN(finalXP) || !isFinite(finalXP) || finalXP < 0) {
     console.error('Invalid final XP value, using default:', finalXP);
     finalXP = 15;
   }
-  
+
   // Cap at reasonable maximum (1 million XP per habit)
   if (finalXP > 1000000) {
     console.error('XP value too large, capping at 1M:', finalXP);
@@ -178,17 +178,17 @@ export async function awardXP(userId, xpAmount, source, metadata = {}, transacti
   try {
     // Validate and sanitize xpAmount
     xpAmount = Number(xpAmount);
-    
+
     if (isNaN(xpAmount) || !isFinite(xpAmount)) {
       console.error('Invalid xpAmount passed to awardXP:', xpAmount, 'source:', source, 'metadata:', metadata);
       throw new Error(`Invalid XP amount: ${xpAmount}. Expected a valid number.`);
     }
-    
+
     if (xpAmount < 0) {
       console.error('Negative xpAmount passed to awardXP:', xpAmount);
       throw new Error(`XP amount cannot be negative: ${xpAmount}`);
     }
-    
+
     if (xpAmount > 1000000) {
       console.error('XP amount too large:', xpAmount);
       throw new Error(`XP amount exceeds maximum allowed: ${xpAmount}`);
@@ -199,8 +199,8 @@ export async function awardXP(userId, xpAmount, source, metadata = {}, transacti
       where: { userId },
       include: [
         { model: db.Rank, as: 'rank' },
-        { 
-          model: db.User, 
+        {
+          model: db.User,
           as: 'user',
           include: [{ model: db.UserProfile, as: 'profile' }]
         }
@@ -216,7 +216,7 @@ export async function awardXP(userId, xpAmount, source, metadata = {}, transacti
     // Handle both number and string types (Sequelize may return BIGINT as string)
     let currentXp = character.currentXp;
     let totalXp = character.totalXp;
-    
+
     // Convert to number, handling string representations
     if (typeof currentXp === 'string') {
       currentXp = parseInt(currentXp, 10);
@@ -224,10 +224,10 @@ export async function awardXP(userId, xpAmount, source, metadata = {}, transacti
     if (typeof totalXp === 'string') {
       totalXp = parseInt(totalXp, 10);
     }
-    
+
     currentXp = Number(currentXp) || 0;
     totalXp = Number(totalXp) || 0;
-    
+
     // Log original values for debugging
     if (typeof character.currentXp === 'string' || typeof character.totalXp === 'string') {
       console.log('XP values converted from string:', {
@@ -237,19 +237,19 @@ export async function awardXP(userId, xpAmount, source, metadata = {}, transacti
         convertedTotalXp: totalXp
       });
     }
-    
+
     if (isNaN(currentXp) || !isFinite(currentXp) || currentXp < 0) {
       console.error('Invalid currentXp in character:', character.currentXp, '->', currentXp);
       currentXp = 0;
       character.currentXp = 0;
     }
-    
+
     if (isNaN(totalXp) || !isFinite(totalXp) || totalXp < 0) {
       console.error('Invalid totalXp in character:', character.totalXp, '->', totalXp);
       totalXp = 0;
       character.totalXp = 0;
     }
-    
+
     // Additional safety check for extremely large values (likely corrupted)
     if (totalXp > 1000000000000) { // 1 trillion
       console.error('Suspiciously large totalXp detected, resetting:', totalXp);
@@ -266,14 +266,44 @@ export async function awardXP(userId, xpAmount, source, metadata = {}, transacti
     // For totalXp (BIGINT), ensure we're adding integers
     // Sequelize will handle the conversion to BigInt for PostgreSQL
     const newTotalXp = Math.floor(totalXp) + Math.floor(xpAmount);
-    
+
     // Validate the result is within safe integer range for JavaScript
     if (newTotalXp > Number.MAX_SAFE_INTEGER) {
       console.error('Total XP exceeds safe integer range:', newTotalXp);
       throw new Error('Total XP value too large');
     }
-    
+
     character.totalXp = newTotalXp;
+
+    // --- STREAK CALCULATION LOGIC ---
+    const today = new Date().toISOString().split('T')[0];
+    const lastStreakDate = character.lastStreakDate; // already DATEONLY string from Sequelize
+
+    // Calculate yesterday's date string
+    const yesterdayDate = new Date();
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterday = yesterdayDate.toISOString().split('T')[0];
+
+    if (lastStreakDate === today) {
+      // Already extended streak today, do nothing
+    } else if (lastStreakDate === yesterday) {
+      // Activity was yesterday, increment streak
+      character.streakDays = (character.streakDays || 0) + 1;
+      character.lastStreakDate = today;
+    } else {
+      // Streak broken or first time
+      character.streakDays = 1;
+      character.lastStreakDate = today;
+    }
+
+    // Update longest streak
+    if (character.streakDays > (character.longestStreak || 0)) {
+      character.longestStreak = character.streakDays;
+    }
+
+    // Always update last active date
+    character.lastActiveDate = today;
+    // --------------------------------
 
     // Emit progress update via WebSocket
     emitUserProgress(userId, {
@@ -299,7 +329,7 @@ export async function awardXP(userId, xpAmount, source, metadata = {}, transacti
 
       // Calculate next level XP requirement (grows moderately)
       character.xpToNextLevel = calculateXPForNextLevel(character.level);
-      
+
       levelUpDetails.push({
         level: character.level,
         xpToNextLevel: character.xpToNextLevel
@@ -405,15 +435,15 @@ export async function awardXP(userId, xpAmount, source, metadata = {}, transacti
     }
 
     return {
-      character: await character.reload({ 
+      character: await character.reload({
         include: [
           { model: db.Rank, as: 'rank' },
-          { 
-            model: db.User, 
+          {
+            model: db.User,
             as: 'user',
             include: [{ model: db.UserProfile, as: 'profile' }]
           }
-        ] 
+        ]
       }),
       leveledUp,
       newLevel: leveledUp ? newLevel : null,
@@ -447,17 +477,17 @@ export async function removeXP(userId, xpAmount, source, metadata = {}, transact
   try {
     // Validate and sanitize xpAmount
     xpAmount = Number(xpAmount);
-    
+
     if (isNaN(xpAmount) || !isFinite(xpAmount)) {
       console.error('Invalid xpAmount passed to removeXP:', xpAmount, 'source:', source, 'metadata:', metadata);
       throw new Error(`Invalid XP amount: ${xpAmount}. Expected a valid number.`);
     }
-    
+
     if (xpAmount < 0) {
       console.error('Negative xpAmount passed to removeXP:', xpAmount);
       throw new Error(`XP amount cannot be negative: ${xpAmount}`);
     }
-    
+
     if (xpAmount > 1000000) {
       console.error('XP amount too large:', xpAmount);
       throw new Error(`XP amount exceeds maximum allowed: ${xpAmount}`);
@@ -468,8 +498,8 @@ export async function removeXP(userId, xpAmount, source, metadata = {}, transact
       where: { userId },
       include: [
         { model: db.Rank, as: 'rank' },
-        { 
-          model: db.User, 
+        {
+          model: db.User,
           as: 'user',
           include: [{ model: db.UserProfile, as: 'profile' }]
         }
@@ -484,7 +514,7 @@ export async function removeXP(userId, xpAmount, source, metadata = {}, transact
     // Validate character XP values are numbers
     let currentXp = character.currentXp;
     let totalXp = character.totalXp;
-    
+
     // Convert to number, handling string representations
     if (typeof currentXp === 'string') {
       currentXp = parseInt(currentXp, 10);
@@ -492,16 +522,16 @@ export async function removeXP(userId, xpAmount, source, metadata = {}, transact
     if (typeof totalXp === 'string') {
       totalXp = parseInt(totalXp, 10);
     }
-    
+
     currentXp = Number(currentXp) || 0;
     totalXp = Number(totalXp) || 0;
-    
+
     if (isNaN(currentXp) || !isFinite(currentXp) || currentXp < 0) {
       console.error('Invalid currentXp in character:', character.currentXp, '->', currentXp);
       currentXp = 0;
       character.currentXp = 0;
     }
-    
+
     if (isNaN(totalXp) || !isFinite(totalXp) || totalXp < 0) {
       console.error('Invalid totalXp in character:', character.totalXp, '->', totalXp);
       totalXp = 0;
@@ -524,18 +554,18 @@ export async function removeXP(userId, xpAmount, source, metadata = {}, transact
       leveledDown = true;
       character.level -= 1;
       newLevel = character.level;
-      
+
       // Calculate XP requirement for the level we're going down to
       const xpForCurrentLevel = calculateXPForNextLevel(character.level - 1);
       character.xpToNextLevel = xpForCurrentLevel;
-      
+
       // Add back the XP requirement for the level we're losing
       newCurrentXp += xpForCurrentLevel;
     }
 
     // Ensure non-negative
     newCurrentXp = Math.max(0, newCurrentXp);
-    
+
     character.currentXp = Math.floor(newCurrentXp);
     character.totalXp = Math.floor(newTotalXp);
 
@@ -619,15 +649,15 @@ export async function removeXP(userId, xpAmount, source, metadata = {}, transact
     }
 
     return {
-      character: await character.reload({ 
+      character: await character.reload({
         include: [
           { model: db.Rank, as: 'rank' },
-          { 
-            model: db.User, 
+          {
+            model: db.User,
             as: 'user',
             include: [{ model: db.UserProfile, as: 'profile' }]
           }
-        ] 
+        ]
       }),
       xpRemoved: xpAmount,
       leveledDown,
